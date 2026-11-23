@@ -8,10 +8,20 @@
  *
  * Assertions: text, text_not, theme, diagnostic, button_blocked,
  * composer_exact, composer_empty, slider_value, input_value, checked,
- * selected, count, attr, popup_url.
+ * selected, count, attr, popup_url, visible, hit_test.
  *
  * Actions: click, type, slider_to, toggle, select_option, tab, modal_open,
  * modal_close, source_toggle, wait.
+ *
+ * A step may set `viewport: { width, height }` to run at a chosen size. The
+ * default is 1280x820; the screenshots at the end of a run always cover both
+ * required sizes.
+ *
+ * `visible` takes `{ selector, min_height }` and requires the element to
+ * exist, survive every clipping ancestor, sit fully inside the viewport, and
+ * measure at least `min_height`. `hit_test` takes `{ selector, at: center }`
+ * and requires `document.elementFromPoint` at the element's center to return
+ * that element or one of its descendants.
  *
  * Usage:
  *   npm run uat
@@ -74,6 +84,17 @@ async function applyTheme(page, theme) {
     document.documentElement.dataset.uatTheme = value;
   }, theme);
   await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: theme }]);
+}
+
+function stepViewport(step) {
+  const wanted = step.viewport ?? SCREENSHOT_VIEWPORTS[0];
+  const { width, height } = wanted;
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
+    throw new Error(
+      `step ${JSON.stringify(step.id ?? "?")}: viewport needs positive integer width and height, got ${compact(wanted)}`,
+    );
+  }
+  return { width, height, deviceScaleFactor: 1 };
 }
 
 async function waitForHarness(page) {
@@ -271,11 +292,13 @@ async function runAssertion(page, assertion) {
   const [key] = Object.keys(assertion);
   const value = assertion[key];
   if (key === "text") {
-    const body = await page.evaluate(() => document.querySelector("#root")?.innerText ?? "");
+    // A modal portals its panel to document.body, outside the app root, so the
+    // page text has to be read from the body.
+    const body = await page.evaluate(() => document.body.innerText ?? "");
     return { ok: body.includes(value), detail: `text ${JSON.stringify(value)} in the page` };
   }
   if (key === "text_not") {
-    const body = await page.evaluate(() => document.querySelector("#root")?.innerText ?? "");
+    const body = await page.evaluate(() => document.body.innerText ?? "");
     return { ok: !body.includes(value), detail: `text ${JSON.stringify(value)} absent` };
   }
   if (key === "theme") {
@@ -545,6 +568,121 @@ async function runAssertion(page, assertion) {
           : `window.open received ${compact(urls)}, last ${JSON.stringify(last)}`,
     };
   }
+  if (key === "visible") {
+    const minHeight = Number(value.min_height);
+    if (!Number.isFinite(minHeight)) {
+      throw new Error(`visible: min_height must be a number, got ${compact(value.min_height)}`);
+    }
+    const info = await page.evaluate(
+      ({ selector, minHeight }) => {
+        const describeNode = (node) => {
+          const id = node.id === "" ? "" : `#${node.id}`;
+          const label = node.getAttribute("aria-label");
+          return `${node.tagName.toLowerCase()}${id}${label === null ? "" : `[aria-label=${JSON.stringify(label)}]`}`;
+        };
+        const clips = (overflow) => overflow !== "visible";
+        const element = document.querySelector(selector);
+        if (element === null) return { missing: true };
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        if (rect.width === 0 || rect.height === 0) {
+          return { hidden: `the box measures ${rect.width}x${rect.height}` };
+        }
+        if (style.display === "none" || style.visibility !== "visible" || Number(style.opacity) === 0) {
+          return {
+            hidden: `display=${style.display}, visibility=${style.visibility}, opacity=${style.opacity}`,
+          };
+        }
+        const clipped = [];
+        for (let node = element.parentElement; node !== null; node = node.parentElement) {
+          if (node === document.body || node === document.documentElement) break;
+          const ancestorStyle = getComputedStyle(node);
+          const box = node.getBoundingClientRect();
+          const clipX = clips(ancestorStyle.overflowX);
+          const clipY = clips(ancestorStyle.overflowY);
+          const outX = rect.left < box.left - 0.5 || rect.right > box.right + 0.5;
+          const outY = rect.top < box.top - 0.5 || rect.bottom > box.bottom + 0.5;
+          if ((clipX && outX) || (clipY && outY)) {
+            clipped.push({ ancestor: describeNode(node) });
+          }
+          // The nearest fixed ancestor is the containing block for everything
+          // below it; further ancestors do not clip a fixed overlay.
+          if (ancestorStyle.position === "fixed") break;
+        }
+        return {
+          rect: {
+            top: rect.top,
+            bottom: rect.bottom,
+            left: rect.left,
+            right: rect.right,
+            height: rect.height,
+          },
+          viewport: { width: innerWidth, height: innerHeight },
+          clipped,
+          outside:
+            rect.left < -0.5 ||
+            rect.top < -0.5 ||
+            rect.right > innerWidth + 0.5 ||
+            rect.bottom > innerHeight + 0.5,
+        };
+      },
+      { selector: value.selector, minHeight },
+    );
+    if (info.missing === true) {
+      return { ok: false, detail: `no element matches ${JSON.stringify(value.selector)}` };
+    }
+    if (info.hidden !== undefined) {
+      return { ok: false, detail: `element is not rendered: ${info.hidden}` };
+    }
+    const box = `${info.rect.left.toFixed(0)},${info.rect.top.toFixed(0)} ${(info.rect.right - info.rect.left).toFixed(0)}x${info.rect.height.toFixed(0)}`;
+    const problems = [];
+    if (info.rect.height < minHeight) {
+      problems.push(`height ${info.rect.height.toFixed(0)} is under the ${minHeight} minimum`);
+    }
+    if (info.clipped.length > 0) {
+      problems.push(`clipped by ${info.clipped.map((entry) => entry.ancestor).join(", ")}`);
+    }
+    if (info.outside) {
+      problems.push(`box is outside the ${info.viewport.width}x${info.viewport.height} viewport`);
+    }
+    return {
+      ok: problems.length === 0,
+      detail:
+        problems.length === 0
+          ? `${JSON.stringify(value.selector)} is visible at ${box}, at least ${minHeight} tall and inside the viewport`
+          : `${JSON.stringify(value.selector)} at ${box}: ${problems.join("; ")}`,
+    };
+  }
+  if (key === "hit_test") {
+    const at = value.at ?? "center";
+    if (at !== "center") {
+      throw new Error(`hit_test: at must be "center", got ${JSON.stringify(value.at)}`);
+    }
+    const info = await page.evaluate((selector) => {
+      const element = document.querySelector(selector);
+      if (element === null) return { missing: true };
+      const rect = element.getBoundingClientRect();
+      const point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      const hit = document.elementFromPoint(point.x, point.y);
+      const label = hit === null ? null : hit.getAttribute("aria-label");
+      return {
+        point,
+        covered: hit !== null && (hit === element || element.contains(hit)),
+        hit: hit === null ? null : `${hit.tagName.toLowerCase()}${label === null ? "" : `[aria-label=${JSON.stringify(label)}]`}`,
+      };
+    }, value.selector);
+    if (info.missing === true) {
+      return { ok: false, detail: `no element matches ${JSON.stringify(value.selector)}` };
+    }
+    const point = `${info.point.x.toFixed(0)},${info.point.y.toFixed(0)}`;
+    return {
+      ok: info.covered,
+      detail:
+        info.hit === null
+          ? `nothing is painted at ${point}`
+          : `${JSON.stringify(value.selector)} ${info.covered ? "is" : "is not"} the hit at ${point} (hit ${info.hit})`,
+    };
+  }
   throw new Error(`unknown assertion ${compact(assertion)}`);
 }
 
@@ -617,6 +755,7 @@ async function runSuite(file, browser) {
       const url = harnessUrl(base, step, stream, stepTheme);
       let navError = null;
       try {
+        await page.setViewport(stepViewport(step));
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
         await waitForHarness(page);
         await applyTheme(page, stepTheme);

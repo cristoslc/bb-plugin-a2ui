@@ -19,6 +19,7 @@ The Source button shows the exact fence body. It exists so a reader can copy a b
 - A button is blocked while any `@checks` rule fails. The first failing message appears above the surface and beside the field.
 - Validation messages appear after the reader tries an action, not before, so an untouched empty field is not red on arrival.
 - `Tabs` and `Modal` keep their state locally; a streaming update does not reset an open tab unless the component is replaced.
+- A `Modal` panel opens above the card instead of inside it, so a short trigger cannot clip it. A tall surface scrolls within the panel.
 
 ## Accessibility
 

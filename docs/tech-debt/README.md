@@ -5,5 +5,4 @@ Known debt too large to fix inline: type errors in third-party code, missing tes
 Known items:
 
 - `formatString` supports `${/path}` and `${@index}` only. Nested function calls inside `${...}` are reported as errors. Adding them needs a small expression parser and tests.
-- `Modal` overlays inside the card rather than portalling to the page, so a very tall surface can clip it.
 - No renderer test yet. Protocol and validation are covered; the React tree is checked by typecheck and a live fence.

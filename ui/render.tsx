@@ -4,6 +4,7 @@
 // agent. Every expression goes through shared/protocol.ts, which resolves
 // paths and a fixed list of catalog functions.
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Markdown } from "@get-bb/plugin-sdk/app";
 import { CATALOG_COMPONENTS, type CatalogComponentName } from "@/catalog/generated";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { usePortalScopeProps } from "@/lib/portal-scope";
 import {
   evaluateChecks,
   isJsonObject,
@@ -341,21 +343,40 @@ function Tabs({ component, ...props }: NodeProps) {
 
 function Modal({ component, ...props }: NodeProps) {
   const [open, setOpen] = useState(false);
+  // Scoped plugin CSS only reaches nodes inside the plugin root, so the
+  // portalled overlay carries the scope attributes the build looks for.
+  const portalScopeProps = usePortalScopeProps();
+  // A one-line trigger measures about 19 pixels, and positioning the overlay
+  // inside its wrapper clipped the panel to that strip. The overlay portals to
+  // the page and fixes itself to the viewport, so the panel keeps its own
+  // height and a tall surface scrolls inside it instead of being cut off.
+  const overlay =
+    open && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            {...portalScopeProps}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 p-3"
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-lg"
+            >
+              <div className="mb-2 flex justify-end">
+                <Button variant="ghost" size="icon" className="size-7" aria-label="Close" onClick={() => setOpen(false)}>
+                  <Icon name="X" className="size-4" />
+                </Button>
+              </div>
+              {props.renderRef(String(component.content), props.scope, props.index)}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
   return (
     <div className="relative" style={weightStyle(component)}>
       <div onClickCapture={() => setOpen(true)}>{props.renderRef(String(component.trigger), props.scope, props.index)}</div>
-      {open ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/85 p-3">
-          <div className="max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-lg">
-            <div className="mb-2 flex justify-end">
-              <Button variant="ghost" size="icon" className="size-7" aria-label="Close" onClick={() => setOpen(false)}>
-                <Icon name="X" className="size-4" />
-              </Button>
-            </div>
-            {props.renderRef(String(component.content), props.scope, props.index)}
-          </div>
-        </div>
-      ) : null}
+      {overlay}
     </div>
   );
 }

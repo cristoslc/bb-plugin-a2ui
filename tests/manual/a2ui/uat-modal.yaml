@@ -1,0 +1,83 @@
+# Operator-assisted E2E: the Modal panel is fully visible whatever the trigger
+# measures, at a desktop and a phone width.
+#
+# A one-line trigger is about 19 pixels tall. While the overlay was positioned
+# inside that wrapper, the panel inherited the strip and measured 26 pixels,
+# with the close button's center painted over by the card below. The panel now
+# portals to document.body and fixes itself to the viewport, so `visible`
+# requires at least 200 pixels inside the viewport and `hit_test` requires the
+# close button to own its center point.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-modal.yaml
+suite: a2ui-modal
+defaults:
+  theme: dark
+
+steps:
+  - id: modal-panel-fits-the-desktop-viewport
+    title: At 1280x820 the panel is at least 200 tall, inside the viewport, and the close button owns its center
+    viewport: { width: 1280, height: 820 }
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText","summaryNote"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24 at 7:30 PM. The table is by the window as requested, and a high chair is reserved for the toddler."},{"id":"summaryNote","component":"Text","text":"Allergy note: no peanuts. The kitchen has the note on the booking, so the server will confirm it at the table before the food leaves the pass. A booster seat waits beside the high chair."}]}}
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+    assert:
+      - visible: { selector: '[role="dialog"]', min_height: 200 }
+      - hit_test: { selector: 'button[aria-label="Close"]', at: center }
+
+  - id: modal-closes-at-desktop-width
+    title: At 1280x820 the close button removes the panel and its content
+    viewport: { width: 1280, height: 820 }
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText","summaryNote"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24 at 7:30 PM. The table is by the window as requested, and a high chair is reserved for the toddler."},{"id":"summaryNote","component":"Text","text":"Allergy note: no peanuts. The kitchen has the note on the booking, so the server will confirm it at the table before the food leaves the pass. A booster seat waits beside the high chair."}]}}
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+      - modal_close: {}
+    assert:
+      - count: { selector: '[role="dialog"]', equals: 0 }
+      - count: { selector: 'button[aria-label="Close"]', equals: 0 }
+      - text_not: "Reservation summary"
+
+  - id: modal-panel-fits-the-phone-viewport
+    title: At 390x844 the panel is at least 200 tall, inside the viewport, and the close button owns its center
+    viewport: { width: 390, height: 844 }
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText","summaryNote"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24 at 7:30 PM. The table is by the window as requested, and a high chair is reserved for the toddler."},{"id":"summaryNote","component":"Text","text":"Allergy note: no peanuts. The kitchen has the note on the booking, so the server will confirm it at the table before the food leaves the pass. A booster seat waits beside the high chair."}]}}
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+    assert:
+      - visible: { selector: '[role="dialog"]', min_height: 200 }
+      - hit_test: { selector: 'button[aria-label="Close"]', at: center }
+
+  - id: modal-closes-at-phone-width
+    title: At 390x844 the close button removes the panel and its content
+    viewport: { width: 390, height: 844 }
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText","summaryNote"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24 at 7:30 PM. The table is by the window as requested, and a high chair is reserved for the toddler."},{"id":"summaryNote","component":"Text","text":"Allergy note: no peanuts. The kitchen has the note on the booking, so the server will confirm it at the table before the food leaves the pass. A booster seat waits beside the high chair."}]}}
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+      - modal_close: {}
+    assert:
+      - count: { selector: '[role="dialog"]', equals: 0 }
+      - count: { selector: 'button[aria-label="Close"]', equals: 0 }
+      - text_not: "Reservation summary"
+
+  - id: open-panel-is-the-last-state
+    title: The open panel is the final state, so the screenshots at both widths show it
+    viewport: { width: 390, height: 844 }
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText","summaryNote"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24 at 7:30 PM. The table is by the window as requested, and a high chair is reserved for the toddler."},{"id":"summaryNote","component":"Text","text":"Allergy note: no peanuts. The kitchen has the note on the booking, so the server will confirm it at the table before the food leaves the pass. A booster seat waits beside the high chair."}]}}
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+    assert:
+      - visible: { selector: '[role="dialog"]', min_height: 200 }
