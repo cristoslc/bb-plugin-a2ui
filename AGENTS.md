@@ -23,6 +23,10 @@ That is `tsc --noEmit` plus `vitest run`. Run it before every commit and quote t
 - Actions reach the agent only through the composer, formatted by `shared/action-message.ts`. Keep the agent-facing shape stable; the skill documents it.
 - Copy is US English, no em dashes, no exclamation marks.
 
+## Replies in this repository
+
+Draw with this project's own renderer. A reply that has something to show carries an `a2ui` fence or plain prose, never an Iris block or an Iris tool call. The plugin is the product, so its replies test it. Iris stays installed for other projects.
+
 ## Layout
 
 - `server.ts` registers the `a2ui_check` and `a2ui_catalog` agent tools.
