@@ -1,0 +1,24 @@
+# Operator-assisted E2E: a date-only DateTimeInput puts the catalog's min and max
+# on the native date input as real attributes, beside the bound value it shows.
+#
+# The runner reads the attributes from the DOM; nothing calls the component.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-datetime-limits.yaml
+suite: a2ui-datetime-limits
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"leave","sendDataModel":true,"dataModel":{"date":"2026-12-24"}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"leave","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","date","echo"]},{"id":"title","component":"Text","text":"Choose a leave date"},{"id":"date","component":"DateTimeInput","label":"Leave date","min":"2026-12-01","max":"2027-01-31","value":{"@path":"/date"}},{"id":"echo","component":"Text","text":{"@call":"formatString","args":{"value":"Leave on ${/date}"}}}]}}
+
+steps:
+  - id: limits-reach-the-date-input
+    title: The date input carries min 2026-12-01 and max 2027-01-31 and shows the bound date
+    goto: "?status=closed"
+    assert:
+      - count: { selector: 'input[type="date"]', equals: 1 }
+      - attr: { selector: 'input[type="date"]', name: type, equals: date }
+      - attr: { selector: 'input[type="date"]', name: min, equals: "2026-12-01" }
+      - attr: { selector: 'input[type="date"]', name: max, equals: "2027-01-31" }
+      - input_value: { label: Leave date, value: "2026-12-24" }
+      - text: "Leave on 2026-12-24"

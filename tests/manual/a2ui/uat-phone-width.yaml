@@ -1,0 +1,32 @@
+# Operator-assisted E2E: at a phone viewport of 390x844 the card and every input
+# stay fully inside the screen. `visible` proves each box survives its clipping
+# ancestors and sits in the viewport; `style` reads the exact pixel widths that
+# keep it there.
+#
+# The harness shell pads 16px on each side, so the fence is 358px wide. The
+# card's border and padding leave a 306px input, and the style assertions pin
+# those widths instead of trusting a class name.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-phone-width.yaml
+suite: a2ui-phone-width
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"visit","sendDataModel":true,"dataModel":{"name":"","arrival":"2026-12-24","party":3,"reminder":false}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"visit","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","arrival","party","reminder","sendLabel","send"]},{"id":"title","component":"Text","text":"Plan a harbor visit"},{"id":"name","component":"TextField","label":"Full name","value":{"@path":"/name"}},{"id":"arrival","component":"DateTimeInput","label":"Arrival date","value":{"@path":"/arrival"}},{"id":"party","component":"Slider","label":"Party size","min":1,"max":8,"value":{"@path":"/party"}},{"id":"reminder","component":"CheckBox","label":"Send a reminder","value":{"@path":"/reminder"}},{"id":"sendLabel","component":"Text","text":"Send request"},{"id":"send","component":"Button","variant":"primary","child":"sendLabel","action":{"event":{"name":"sendVisit","userMessage":"Send request","context":{}}}}]}}
+
+steps:
+  - id: card-and-inputs-fit-a-phone
+    title: At 390x844 the card and its text, date and range inputs are inside the viewport
+    goto: "?status=closed"
+    viewport: { width: 390, height: 844 }
+    assert:
+      - visible: { selector: '[class*="bg-background/60"]', min_height: 20 }
+      - visible: { selector: 'input[type="text"]', min_height: 16 }
+      - visible: { selector: 'input[type="date"]', min_height: 16 }
+      - visible: { selector: 'input[type="range"]', min_height: 10 }
+      - visible: { selector: 'button:has([data-uat-markdown])', min_height: 20 }
+      - style: { selector: '[class*="bg-background/60"]', property: width, equals: 332px }
+      - style: { selector: 'input[type="text"]', property: width, equals: 306px }
+      - style: { selector: 'input[type="date"]', property: width, equals: 306px }
+      - style: { selector: 'input[type="range"]', property: width, equals: 306px }

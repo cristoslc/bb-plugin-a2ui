@@ -1,0 +1,45 @@
+# Operator-assisted E2E: a Slider carries the catalog's min, max and step to the
+# native range input, and the bound value stays inside that range.
+#
+# steps is the catalog count of allowed values, so a step of 4 intervals across
+# 10..50 lands on 10. The slider is moved with Home and arrow keys after a real
+# click, never by setting the value from script.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-slider-attributes.yaml
+suite: a2ui-slider-attributes
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"mixer","sendDataModel":true,"dataModel":{"volume":30}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"mixer","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","volume","echo"]},{"id":"title","component":"Text","text":"Set the room volume"},{"id":"volume","component":"Slider","label":"Volume","min":10,"max":50,"steps":5,"value":{"@path":"/volume"}},{"id":"echo","component":"Text","text":{"@call":"formatString","args":{"value":"Volume bound: ${/volume}"}}}]}}
+
+steps:
+  - id: catalog-limits-reach-the-range-input
+    title: The range input carries min 10, max 50 and step 10, and starts on the bound value 30
+    goto: "?status=closed"
+    assert:
+      - count: { selector: 'input[type="range"]', equals: 1 }
+      - attr: { selector: 'input[type="range"]', name: min, equals: "10" }
+      - attr: { selector: 'input[type="range"]', name: max, equals: "50" }
+      - attr: { selector: 'input[type="range"]', name: step, equals: "10" }
+      - attr: { selector: 'input[type="range"]', name: value, equals: "30" }
+      - slider_value: { label: Volume, value: 30 }
+      - text: "Volume bound: 30"
+
+  - id: bound-value-reaches-the-top-without-passing-it
+    title: Moving the slider to its maximum stops at 50 and writes that bound value
+    goto: "?status=closed"
+    actions:
+      - slider_to: { label: Volume, value: 50 }
+    assert:
+      - slider_value: { label: Volume, value: 50 }
+      - text: "Volume bound: 50"
+
+  - id: bound-value-reaches-the-bottom-without-passing-it
+    title: Moving the slider to its minimum stops at 10 and writes that bound value
+    goto: "?status=closed"
+    actions:
+      - slider_to: { label: Volume, value: 10 }
+    assert:
+      - slider_value: { label: Volume, value: 10 }
+      - text: "Volume bound: 10"

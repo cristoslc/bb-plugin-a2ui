@@ -1,0 +1,41 @@
+# Operator-assisted E2E: every rendered input sits inside a real label, and an
+# action button takes its accessible name from the Text child it wraps.
+#
+# The runner has no computed accessible-name verb, so the button is proven a
+# second way: it matches as a button containing rendered Text, and it carries
+# no aria-label or aria-labelledby of its own. Its visible words are the only
+# name it can have.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-a11y-labels.yaml
+suite: a2ui-a11y-labels
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"request","sendDataModel":true,"dataModel":{"name":"","notes":"","arrival":"2026-12-24","party":3,"reminder":false,"cabin":["standard"]}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"request","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","notes","arrival","party","reminder","cabinPicker","sendLabel","send"]},{"id":"title","component":"Text","text":"Book a cabin"},{"id":"name","component":"TextField","label":"Full name","value":{"@path":"/name"}},{"id":"notes","component":"TextField","label":"Notes for the host","variant":"longText","value":{"@path":"/notes"}},{"id":"arrival","component":"DateTimeInput","label":"Arrival date","value":{"@path":"/arrival"}},{"id":"party","component":"Slider","label":"Party size","min":1,"max":8,"value":{"@path":"/party"}},{"id":"reminder","component":"CheckBox","label":"Send a reminder","value":{"@path":"/reminder"}},{"id":"cabinPicker","component":"ChoicePicker","label":"Cabin","value":{"@path":"/cabin"},"options":[{"value":"standard","label":"Standard cabin"},{"value":"family","label":"Family cabin"}]},{"id":"sendLabel","component":"Text","text":"Send request"},{"id":"send","component":"Button","variant":"primary","child":"sendLabel","action":{"event":{"name":"sendRequest","userMessage":"Send request","context":{}}}}]}}
+
+steps:
+  - id: every-input-is-wrapped-in-a-label
+    title: Each input, textarea, range and checkbox has a label element above it
+    goto: "?status=closed"
+    assert:
+      - count: { selector: 'input:not([type="range"])', equals: 2 }
+      - count: { selector: 'label input:not([type="range"])', equals: 2 }
+      - count: { selector: textarea, equals: 1 }
+      - count: { selector: label textarea, equals: 1 }
+      - count: { selector: 'input[type="range"]', equals: 1 }
+      - count: { selector: 'label input[type="range"]', equals: 1 }
+      - count: { selector: '[role="checkbox"]', equals: 3 }
+      - count: { selector: 'label [role="checkbox"]', equals: 3 }
+      - count: { selector: 'button[aria-label="Standard cabin"]', equals: 1 }
+      - count: { selector: 'button[aria-label="Family cabin"]', equals: 1 }
+
+  - id: button-names-itself-with-its-child-text
+    title: The action button has no explicit name attribute and wraps the Text that names it
+    goto: "?status=closed"
+    assert:
+      - count: { selector: 'button:has([data-uat-markdown])', equals: 1 }
+      - count: { selector: 'button:has([data-uat-markdown]):not([aria-label]):not([aria-labelledby])', equals: 1 }
+      - count: { selector: 'button:has([data-uat-markdown]) [data-uat-markdown]', equals: 1 }
+      - text: "Send request"
+      - count: { selector: 'button[aria-label="Send request"]', equals: 0 }

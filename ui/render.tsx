@@ -173,13 +173,32 @@ function Video({ component, ...props }: NodeProps) {
   if (url === null) return <UnsupportedMedia what="videos" />;
   const poster = resolvedText(props, component.posterUrl).text;
   const posterUrl = poster === "" ? undefined : safeMediaUrl(poster) ?? undefined;
-  return <video src={url} poster={posterUrl} controls className="w-full rounded-md bg-muted" style={weightStyle(component)} />;
+  const description = resolvedText(props, component.description).text;
+  return (
+    <video
+      src={url}
+      poster={posterUrl}
+      controls
+      aria-label={description === "" ? undefined : description}
+      className="w-full rounded-md bg-muted"
+      style={weightStyle(component)}
+    />
+  );
 }
 
 function AudioPlayer({ component, ...props }: NodeProps) {
   const url = safeMediaUrl(resolvedText(props, component.url).text);
   if (url === null) return <UnsupportedMedia what="audio" />;
-  return <audio src={url} controls className="w-full" style={weightStyle(component)} />;
+  const description = resolvedText(props, component.description).text;
+  return (
+    <audio
+      src={url}
+      controls
+      aria-label={description === "" ? undefined : description}
+      className="w-full"
+      style={weightStyle(component)}
+    />
+  );
 }
 
 const MATERIAL_ICONS: Record<string, string> = {
