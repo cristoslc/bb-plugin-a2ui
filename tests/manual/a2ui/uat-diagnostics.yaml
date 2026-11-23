@@ -1,0 +1,33 @@
+# Operator-assisted E2E: broken streams fail visibly, and a failing check keeps
+# its button blocked.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-diagnostics.yaml
+suite: a2ui-diagnostics
+defaults:
+  theme: dark
+steps:
+  - id: broken-stream-names-its-diagnostic
+    title: A version mismatch draws its named diagnostic instead of a surface
+    goto: "?status=closed"
+    stream: |
+      {"version":"2.0","createSurface":{"surfaceId":"stale"}}
+    assert:
+      - text: "no surface"
+      - diagnostic:
+          code: VERSION_MISMATCH
+          message_contains: 'Expected version "1.0"'
+
+  - id: failing-check-keeps-the-button-blocked
+    title: A button whose check fails stays blocked and sends nothing
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"plan","sendDataModel":true,"dataModel":{"destination":""}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"plan","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","destination","send"]},{"id":"title","component":"Text","text":"Plan a trip"},{"id":"destination","component":"TextField","label":"Where to","placeholder":"City","value":{"@path":"/destination"},"@checks":[{"condition":{"@call":"required","args":{"value":{"@path":"/destination"}}},"message":"Pick a destination."}]},{"id":"sendLabel","component":"Text","text":"Plan it"},{"id":"send","component":"Button","variant":"primary","child":"sendLabel","@checks":[{"condition":{"@call":"required","args":{"value":{"@path":"/destination"}}},"message":"Pick a destination."}],"action":{"event":{"name":"planTrip","context":{"destination":{"@path":"/destination"}}}}}]}}
+    actions:
+      - click: { text: "Plan it" }
+    assert:
+      - text: "Pick a destination."
+      - button_blocked:
+          label: Plan it
+          message: Pick a destination.
+      - composer_empty: true

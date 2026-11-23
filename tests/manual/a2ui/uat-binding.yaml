@@ -1,0 +1,49 @@
+# Operator-assisted E2E: inputs write the data model and actions reach the
+# composer with the exact formatted text.
+#
+# The slider is moved with real keyboard events after a real click focuses it.
+# The button is clicked at its own box. Nothing calls a React handler directly.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-binding.yaml
+suite: a2ui-binding
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"trip","sendDataModel":true,"dataModel":{"days":3}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"trip","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","days","daysValue","go"]},{"id":"title","component":"Text","text":"Book the trip"},{"id":"days","component":"Slider","label":"Days","min":1,"max":14,"value":{"@path":"/days"}},{"id":"daysValue","component":"Text","text":{"@call":"formatString","args":{"value":"Days: ${/days}"}}},{"id":"goLabel","component":"Text","text":"Book the trip"},{"id":"go","component":"Button","variant":"primary","child":"goLabel","action":{"event":{"name":"bookTrip","userMessage":"Book the trip","context":{"days":{"@path":"/days"}}}}}]}}
+
+steps:
+  - id: slider-writes-the-data-model
+    title: Moving the slider writes the bound data model and the bound text follows
+    goto: "?status=closed"
+    actions:
+      - slider_to: { label: Days, value: 7 }
+    assert:
+      - slider_value: { label: Days, value: 7 }
+      - text: "Days: 7"
+
+  - id: button-inserts-the-exact-action-text
+    title: The button inserts the formatted action message into the composer
+    goto: "?status=closed"
+    actions:
+      - slider_to: { label: Days, value: 7 }
+      - click: { text: "Book the trip" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] bookTrip (surface trip)
+
+          Book the trip
+
+          context:
+          ```json
+          {
+            "days": 7
+          }
+          ```
+
+          data model:
+          ```json
+          {
+            "days": 7
+          }
+          ```
