@@ -33,8 +33,11 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-dynamic-bad-url.yaml` | An Image URL bound from the data model to a javascript: value is refused at draw time, with no image element. | 2 |
 | `tests/manual/a2ui/uat-empty-list.yaml` | A list template over an empty array draws zero rows and never shows the waiting text. | 2 |
 | `tests/manual/a2ui/uat-empty-values.yaml` | Empty strings, a missing path, null and literal empty values render as empty text, never undefined or null. | 2 |
+| `tests/manual/a2ui/uat-fuzz-surface.yaml` | Forty seeded rounds touch four buttons, two checkboxes, two sliders and two text fields; nothing throws, and the card still draws one surface with its title. | 1 |
 | `tests/manual/a2ui/uat-icon.yaml` | A mapped icon name draws the icon, an unmapped name stays visible as text, and an inline svgPath draws an svg with a path. | 4 |
 | `tests/manual/a2ui/uat-image.yaml` | An https Image draws a real img element with the stream's URL, the description as alt, and the catalog fit as computed object-fit. | 2 |
+| `tests/manual/a2ui/uat-keyboard-controls.yaml` | Space toggles the checkbox a Tab lands on, Home and the arrow keys move the slider with the bound Text following, and Tab then Enter selects a chip. | 3 |
+| `tests/manual/a2ui/uat-keyboard-journey.yaml` | Tab, typing and Enter fill a form and submit it with the exact action message, using no mouse click. | 1 |
 | `tests/manual/a2ui/uat-layout.yaml` | Row and Column compute their flex direction, keep their children in order, and their justify and align values reach computed style. | 3 |
 | `tests/manual/a2ui/uat-list.yaml` | A vertical List computes column, a horizontal List computes row, and both paint their children in stream order. | 3 |
 | `tests/manual/a2ui/uat-long-list.yaml` | A 50-item list draws all 50 children in order with both endpoints visible. | 2 |
@@ -81,4 +84,4 @@ Three catalog validation promises are proved in `tests/catalog.test.ts` rather t
 
 ## Total
 
-62 suites. They script 104 steps, and each report adds one network check row, for 166 report rows in all.
+65 suites. They script 109 steps, and each report adds one network check row, for 174 report rows in all.

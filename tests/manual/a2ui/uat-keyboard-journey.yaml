@@ -1,0 +1,57 @@
+# Operator-assisted E2E: a reader who never touches the mouse fills a form and
+# submits it with the keyboard alone.
+#
+# Every action here is a key: `press` sends one real key to whatever has focus,
+# and `type_focused` types into that same focused field, so no action clicks.
+# The tab order of the mounted fence is the Source button, then the two fields,
+# then the submit button. Enter on the focused button sends the action, and the
+# composer receives the exact message with both typed values.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-keyboard-journey.yaml
+suite: a2ui-keyboard-journey
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"ticket","sendDataModel":true,"dataModel":{"name":"","email":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"ticket","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","email","submit"]},{"id":"title","component":"Text","text":"Open a support ticket"},{"id":"name","component":"TextField","label":"Full name","value":{"@path":"/name"}},{"id":"email","component":"TextField","label":"Email","value":{"@path":"/email"}},{"id":"submitLabel","component":"Text","text":"Send ticket"},{"id":"submit","component":"Button","variant":"primary","child":"submitLabel","action":{"event":{"name":"sendTicket","userMessage":"Send the ticket","context":{"name":{"@path":"/name"},"email":{"@path":"/email"}}}}}]}}
+
+steps:
+  - id: keyboard-fills-and-submits
+    title: Tab reaches both fields and the submit button, typing fills them, and Enter sends the exact message with no click
+    goto: "?status=closed"
+    actions:
+      - press: { key: Tab }
+      - press: { key: Tab }
+      - type_focused: { text: "Ada Lovelace" }
+      - press: { key: Tab }
+      - type_focused: { text: "ada@example.com" }
+      - press: { key: Tab }
+      - assert:
+          input_value: { label: Full name, value: "Ada Lovelace" }
+      - assert:
+          input_value: { label: Email, value: "ada@example.com" }
+      - assert:
+          composer_empty: true
+      - press: { key: Enter }
+    assert:
+      - composer_exact: |-
+          [a2ui action] sendTicket (surface ticket)
+
+          Send the ticket
+
+          context:
+          ```json
+          {
+            "name": "Ada Lovelace",
+            "email": "ada@example.com"
+          }
+          ```
+
+          data model:
+          ```json
+          {
+            "name": "Ada Lovelace",
+            "email": "ada@example.com"
+          }
+          ```
+      - no_page_errors: true

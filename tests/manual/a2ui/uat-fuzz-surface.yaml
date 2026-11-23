@@ -1,0 +1,38 @@
+# Operator-assisted E2E: an unfamiliar surface cannot throw.
+#
+# The surface carries four buttons, two checkboxes, two sliders and two text
+# fields, and the runner touches them the way a reader would for 40 seeded
+# rounds: real clicks, toggles, arrow presses and short typing. The fixed seed
+# makes the same sequence run every time. The composer grows below the card as
+# buttons send actions, and that growth is ignored: only the card's controls
+# are targets.
+#
+# A throw would stop the fuzz and fail the action with the round and control
+# named, and no_page_errors records every uncaught page error and console error
+# for the suite. The card must still draw one surface with its title.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-fuzz-surface.yaml
+suite: a2ui-fuzz-surface
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"playground","sendDataModel":true,"dataModel":{"first":"","last":"","alerts":false,"digest":true,"brightness":50,"volume":30}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"playground","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","first","last","alerts","digest","brightness","volume","actions"]},{"id":"title","component":"Text","text":"Fuzz playground"},{"id":"first","component":"TextField","label":"First name","value":{"@path":"/first"}},{"id":"last","component":"TextField","label":"Last name","value":{"@path":"/last"}},{"id":"alerts","component":"CheckBox","label":"Email alerts","value":{"@path":"/alerts"}},{"id":"digest","component":"CheckBox","label":"Weekly digest","value":{"@path":"/digest"}},{"id":"brightness","component":"Slider","label":"Brightness","min":0,"max":100,"value":{"@path":"/brightness"}},{"id":"volume","component":"Slider","label":"Volume","min":0,"max":100,"value":{"@path":"/volume"}},{"id":"actions","component":"Row","children":["save","reset","refresh","publish"]},{"id":"saveLabel","component":"Text","text":"Save draft"},{"id":"save","component":"Button","variant":"primary","child":"saveLabel","action":{"event":{"name":"saveDraft","userMessage":"Save the draft"}}},{"id":"resetLabel","component":"Text","text":"Reset form"},{"id":"reset","component":"Button","child":"resetLabel","action":{"event":{"name":"resetForm","userMessage":"Reset the form"}}},{"id":"refreshLabel","component":"Text","text":"Refresh"},{"id":"refresh","component":"Button","child":"refreshLabel","action":{"event":{"name":"refresh","userMessage":"Refresh the view"}}},{"id":"publishLabel","component":"Text","text":"Publish"},{"id":"publish","component":"Button","child":"publishLabel","action":{"event":{"name":"publish","userMessage":"Publish the draft"}}}]}}
+
+steps:
+  - id: forty-seeded-rounds-cannot-throw
+    title: Forty seeded rounds touch every control kind, nothing throws, and the card still draws one surface with its title
+    goto: "?status=closed"
+    actions:
+      - assert:
+          count: { selector: 'button[role="checkbox"]', equals: 2 }
+      - assert:
+          count: { selector: 'input[type="range"]', equals: 2 }
+      - assert:
+          count: { selector: 'input[type="text"]', equals: 2 }
+      - fuzz: { rounds: 40, seed: 20261123 }
+    assert:
+      - no_page_errors: true
+      - text: "Fuzz playground"
+      - text: "1 surface"
+      - count: { selector: '[data-uat-fence] > div', equals: 1 }

@@ -1,0 +1,62 @@
+# Operator-assisted E2E: the controls a reader meets are reachable and usable
+# with the keyboard alone.
+#
+# Every action is a key. Space toggles the checkbox that the second Tab lands
+# on, Home and the arrow keys move the slider and the bound Text follows the
+# value it wrote, and Tab walks onto a chip that Enter selects. No action
+# clicks, so the selection state and the composer stay the proof of focus.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-keyboard-controls.yaml
+suite: a2ui-keyboard-controls
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"controls","sendDataModel":true,"dataModel":{"notify":false,"volume":0,"plan":[]}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"controls","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","notify","notifyEcho","volume","volumeEcho","plans"]},{"id":"title","component":"Text","text":"Sound controls"},{"id":"notify","component":"CheckBox","label":"Notify me when it starts","value":{"@path":"/notify"}},{"id":"notifyEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Notify: ${/notify}"}}},{"id":"volume","component":"Slider","label":"Volume","min":0,"max":10,"value":{"@path":"/volume"}},{"id":"volumeEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Volume: ${/volume}"}}},{"id":"plans","component":"ChoicePicker","label":"Plan","variant":"multipleSelection","displayStyle":"chips","value":{"@path":"/plan"},"options":[{"value":"basic","label":"Basic"},{"value":"pro","label":"Pro"}]}]}}
+
+steps:
+  - id: space-toggles-the-checkbox
+    title: Tab reaches the checkbox and Space turns it on, and the bound boolean follows
+    goto: "?status=closed"
+    actions:
+      - press: { key: Tab }
+      - press: { key: Tab }
+      - assert:
+          checked: { label: Notify me when it starts, value: false }
+      - press: { key: Space }
+    assert:
+      - checked: { label: Notify me when it starts, value: true }
+      - text: "Notify: true"
+      - no_page_errors: true
+
+  - id: arrows-move-the-slider
+    title: Home and two ArrowRight presses move the focused slider to 2 and the bound Text reads 2
+    goto: "?status=closed"
+    actions:
+      - press: { key: Tab }
+      - press: { key: Tab }
+      - press: { key: Tab }
+      - press: { key: Home }
+      - press: { key: ArrowRight }
+      - press: { key: ArrowRight }
+    assert:
+      - slider_value: { label: Volume, value: 2 }
+      - text: "Volume: 2"
+      - no_page_errors: true
+
+  - id: a-chip-is-selected-by-keyboard
+    title: Tab walks past the first chip onto the second and Enter selects it, leaving the first unselected
+    goto: "?status=closed"
+    actions:
+      - press: { key: Tab }
+      - press: { key: Tab }
+      - press: { key: Tab }
+      - press: { key: Tab }
+      - assert:
+          selected: { label: Plan, option: Basic, value: false }
+      - press: { key: Tab }
+      - press: { key: Enter }
+    assert:
+      - selected: { label: Plan, option: Pro, value: true }
+      - selected: { label: Plan, option: Basic, value: false }
+      - no_page_errors: true

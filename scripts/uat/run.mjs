@@ -8,7 +8,14 @@
  *
  * Assertions: text, text_not, theme, diagnostic, button_blocked,
  * composer_exact, composer_empty, slider_value, input_value, checked,
- * selected, count, attr, style, popup_url, popup_count, visible, hit_test.
+ * selected, count, attr, style, popup_url, popup_count, visible, hit_test,
+ * no_page_errors.
+ *
+ * `no_page_errors` takes `true` and passes only when nothing threw. The runner
+ * records every `pageerror` and every console error for the whole suite, so the
+ * assertion reports what arrived, not just the count. A failed subresource load
+ * is a browser network diagnostic rather than an uncaught error, and the
+ * network step already checks every request.
  *
  * `popup_count` takes `{ equals }` and counts the URLs recorded by the
  * window.open stub, so a refused openUrl proves zero calls.
@@ -18,8 +25,24 @@
  * wrong node. `style` takes `{ selector, property, equals }` and compares the
  * computed value; the property may be written as `object-fit` or `objectFit`.
  *
- * Actions: click, type, slider_to, toggle, select_option, tab, modal_open,
- * modal_close, source_toggle, push_stream, wait.
+ * Actions: click, type, type_focused, press, slider_to, toggle,
+ * select_option, tab, modal_open, modal_close, source_toggle, push_stream,
+ * fuzz, wait.
+ *
+ * `press` takes `{ key }` and sends one real key to the focused element, or to
+ * the page when nothing is focused. The accepted keys are Tab, Shift+Tab,
+ * Enter, Space, ArrowLeft, ArrowRight, Home and End. `type_focused` types into
+ * whatever already has focus and never clicks, which is what lets a suite fill
+ * a form with no mouse.
+ *
+ * `fuzz` takes `{ rounds, seed }` and touches the mounted surface the way a
+ * reader would: a real click on a button, checkbox or chip, a click plus an
+ * arrow press on a range input, or a click plus a few characters in a text
+ * field. Targets are the visible, hit-testable controls inside the fence, so
+ * the composer growing below the surface changes nothing. The seed drives a
+ * fixed pseudo-random sequence, so the same seed picks the same controls and
+ * the same keys on every run. It stops early only when the page throws, and it
+ * then names the round and the control that threw.
  *
  * `push_stream` takes `{ code, status }` and hands it to the harness's
  * `window.__uatPushStream`. The fence keeps its mounted instance, so edits, the
@@ -129,7 +152,209 @@ function compact(value) {
   return text.length > 160 ? `${text.slice(0, 157)}...` : text;
 }
 
-async function runAction(page, action) {
+const PRESS_KEYS = [
+  "Tab",
+  "Shift+Tab",
+  "Enter",
+  "Space",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+];
+
+/** Mulberry32: a tiny seeded generator, so one seed repeats one sequence. */
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return function next() {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function readPressKey(payload) {
+  const key = payload?.key;
+  if (typeof key !== "string" || !PRESS_KEYS.includes(key)) {
+    throw new Error(
+      `press: key must be one of ${PRESS_KEYS.join(", ")}, got ${compact(key)}`,
+    );
+  }
+  return key;
+}
+
+/** Where focus is now, in words a report can show. */
+function focusedName(page) {
+  return page.evaluate(() => {
+    const element = document.activeElement;
+    if (!(element instanceof Element) || element === document.body) return "the page";
+    const tag = element.tagName.toLowerCase();
+    const own = (element.getAttribute("aria-label") ?? window.__uatText(element)).trim();
+    if (own !== "") return `${tag} ${JSON.stringify(own)}`;
+    const around = element.closest("label");
+    const label = around === null ? "" : window.__uatText(around);
+    if (label !== "") return `${tag} in ${JSON.stringify(label)}`;
+    if (element instanceof HTMLInputElement) return `${tag}[type=${element.type}]`;
+    return tag;
+  });
+}
+
+/**
+ * The visible, hit-testable controls a reader can reach on the mounted surface:
+ * buttons, checkbox and chip options, range inputs and text fields. Anything
+ * clipped, hidden, covered or parked outside the viewport is left out, so a
+ * fuzz round only touches what a person could touch.
+ */
+function collectFuzzTargets(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector("[data-uat-fence]");
+    if (root === null) return { missing: "fence" };
+    const selector = [
+      "button",
+      '[role="checkbox"]',
+      'input[type="range"]',
+      'input[type="text"]',
+      'input[type="number"]',
+      'input[type="search"]',
+      'input[type="email"]',
+      'input[type="url"]',
+      'input[type="tel"]',
+      'input[type="password"]',
+      "textarea",
+    ].join(", ");
+    const kindOf = (element) => {
+      if (element instanceof HTMLInputElement && element.type === "range") return "range";
+      if (element.getAttribute("role") === "checkbox") return "checkbox";
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) return "text";
+      return "button";
+    };
+    const targets = [];
+    for (const element of root.querySelectorAll(selector)) {
+      if (!(element instanceof HTMLElement)) continue;
+      if (element.matches(":disabled") || element.getAttribute("aria-disabled") === "true") continue;
+      const words = (element.getAttribute("aria-label") ?? window.__uatText(element)).trim();
+      // The source toggle swaps the surface for the raw stream, which would end
+      // the run, so it is never a fuzz target.
+      if (words === "Source" || words === "Hide source") continue;
+      element.scrollIntoView({ block: "nearest", inline: "nearest" });
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      const style = getComputedStyle(element);
+      if (style.display === "none" || style.visibility !== "visible" || Number(style.opacity) === 0) {
+        continue;
+      }
+      const point = window.__uatHitPoint(element);
+      if (point === null) continue;
+      if (point.x < 0 || point.y < 0 || point.x > innerWidth || point.y > innerHeight) continue;
+      targets.push({
+        kind: kindOf(element),
+        words: (words === "" ? element.tagName.toLowerCase() : words).slice(0, 80),
+        inputType: element instanceof HTMLInputElement ? element.type : null,
+        point,
+      });
+    }
+    return { targets };
+  });
+}
+
+/**
+ * Touch the mounted surface the way a reader would, for a fixed number of
+ * rounds. The seed picks both the target and the key, so a run repeats. A page
+ * error ends the fuzz at once with the round and the control named: the runner
+ * reports a throw in the renderer, it never patches one.
+ */
+async function runFuzz(page, payload, state) {
+  const rounds = payload?.rounds;
+  const seed = payload?.seed;
+  if (!Number.isInteger(rounds) || rounds <= 0) {
+    throw new Error(`fuzz: rounds must be a positive integer, got ${compact(rounds)}`);
+  }
+  if (!Number.isInteger(seed)) {
+    throw new Error(`fuzz: seed must be an integer, got ${compact(seed)}`);
+  }
+  const random = seededRandom(seed);
+  const startedWith = state.pageErrors.length;
+  const counts = { button: 0, checkbox: 0, range: 0, text: 0 };
+  const typed = ["Ada", "7", "42", "Ok", "Zed"];
+  let performed = 0;
+  for (let round = 1; round <= rounds; round += 1) {
+    const collected = await collectFuzzTargets(page);
+    if (collected.missing !== undefined) {
+      throw new Error("fuzz: no A2UI fence is mounted");
+    }
+    const targets = collected.targets;
+    if (targets.length === 0) break;
+    const target = targets[Math.floor(random() * targets.length)];
+    counts[target.kind] += 1;
+    const describe = `round ${round} of ${rounds}, ${target.kind} ${JSON.stringify(target.words)}`;
+    await page.mouse.click(target.point.x, target.point.y);
+    if (target.kind === "range") {
+      await page.keyboard.press(random() < 0.5 ? "ArrowLeft" : "ArrowRight");
+    } else if (target.kind === "text") {
+      const word = typed[Math.floor(random() * typed.length)];
+      const digits = word.replace(/\D/gu, "");
+      const typedText = target.inputType === "number" ? (digits === "" ? "7" : digits) : word;
+      await page.keyboard.type(typedText);
+    }
+    performed += 1;
+    await sleep(40);
+    if (state.pageErrors.length > startedWith) {
+      const error = state.pageErrors[startedWith];
+      throw new Error(
+        `fuzz: the page threw on ${describe}: ${error.kind} ${JSON.stringify(error.message)}`,
+      );
+    }
+  }
+  if (performed < rounds) {
+    throw new Error(
+      `fuzz: only ${performed} of ${rounds} rounds found a visible control on the surface`,
+    );
+  }
+  return `fuzz: ${performed} rounds, seed ${seed}, ${counts.button} button, ${counts.checkbox} checkbox, ${counts.range} range, ${counts.text} text`;
+}
+
+function actionLabel(action) {
+  if (action?.press !== undefined) {
+    const key = action.press?.key;
+    return `press ${typeof key === "string" ? key : compact(key)}`;
+  }
+  if (action?.type_focused !== undefined) {
+    return `type_focused ${JSON.stringify(action.type_focused?.text)}`;
+  }
+  if (action?.fuzz !== undefined) {
+    return `fuzz ${compact(action.fuzz)}`;
+  }
+  return compact(action);
+}
+
+async function runAction(page, action, state) {
+  if (action.press !== undefined) {
+    const key = readPressKey(action.press);
+    const before = await focusedName(page);
+    await page.keyboard.press(key);
+    await sleep(50);
+    const after = await focusedName(page);
+    return `press ${key}: focus moved from ${before} to ${after}`;
+  }
+  if (action.type_focused !== undefined) {
+    const text = action.type_focused?.text;
+    if (typeof text !== "string" || text === "") {
+      throw new Error(`type_focused: text must be a non-empty string, got ${compact(text)}`);
+    }
+    const focused = await focusedName(page);
+    if (focused === "the page") {
+      throw new Error("type_focused: nothing is focused, so the text would go nowhere");
+    }
+    await page.keyboard.type(text);
+    await sleep(100);
+    return `type_focused ${JSON.stringify(text)} into ${focused}`;
+  }
+  if (action.fuzz !== undefined) {
+    return runFuzz(page, action.fuzz, state);
+  }
+
   if (action.slider_to !== undefined) {
     const { label, value } = action.slider_to;
     const info = await page.evaluate((wanted) => {
@@ -331,9 +556,24 @@ async function runAction(page, action) {
   throw new Error(`unknown action ${compact(action)}`);
 }
 
-async function runAssertion(page, assertion) {
+async function runAssertion(page, assertion, state) {
   const [key] = Object.keys(assertion);
   const value = assertion[key];
+  if (key === "no_page_errors") {
+    if (value !== true) {
+      throw new Error(`no_page_errors: the only value is true, got ${compact(value)}`);
+    }
+    const errors = state.pageErrors;
+    return {
+      ok: errors.length === 0,
+      detail:
+        errors.length === 0
+          ? "no page errors and no console errors arrived"
+          : `${errors.length} error(s) arrived: ${compact(
+              errors.map((entry) => `${entry.kind} in ${entry.step}: ${entry.message}`),
+            )}`,
+    };
+  }
   if (key === "text") {
     // A modal portals its panel to document.body, outside the app root, so the
     // page text has to be read from the body.
@@ -825,6 +1065,33 @@ async function runSuite(file, browser) {
       void request.abort();
     }
   });
+  // Everything that threw, for the whole suite: an uncaught page error and a
+  // console error are both recorded with the step that was running, so a failing
+  // `no_page_errors` names what arrived rather than only counting it.
+  const pageErrors = [];
+  let currentStep = "before the first step";
+  page.on("pageerror", (error) => {
+    pageErrors.push({
+      kind: "pageerror",
+      step: currentStep,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  });
+  page.on("console", (message) => {
+    if (message.type() !== "error") return;
+    const text = message.text();
+    // A failed subresource load (a missing favicon, an aborted media URL) is a
+    // browser network diagnostic, not an uncaught error from the page. The
+    // network step already fails any request the suite did not declare.
+    if (/^Failed to load resource:/u.test(text)) return;
+    pageErrors.push({
+      kind: "console",
+      step: currentStep,
+      message: text,
+      url: message.location()?.url ?? null,
+    });
+  });
+  const state = { pageErrors };
   await page.setViewport(SCREENSHOT_VIEWPORTS[0]);
   const report = {
     suite: suite.suite ?? name,
@@ -835,6 +1102,7 @@ async function runSuite(file, browser) {
 
   try {
     for (const step of steps) {
+      currentStep = step.id ?? `step-${report.steps.length + 1}`;
       const stepTheme = step.theme ?? theme;
       const stream = step.stream ?? suite.stream;
       const url = harnessUrl(base, step, stream, stepTheme);
@@ -858,7 +1126,7 @@ async function runSuite(file, browser) {
           // can inspect a partial stream before the next push replaces it.
           if (action !== null && typeof action === "object" && action.assert !== undefined) {
             try {
-              const result = await runAssertion(page, action.assert);
+              const result = await runAssertion(page, action.assert, state);
               results.push({ name: compact(action.assert), ...result });
             } catch (cause) {
               results.push({
@@ -870,10 +1138,15 @@ async function runSuite(file, browser) {
             continue;
           }
           try {
-            await runAction(page, action);
+            const detail = await runAction(page, action, state);
+            // An action that can say what it did reports a passing row, so a
+            // keyboard or fuzz step shows the focus path and the seed it ran.
+            if (detail !== undefined) {
+              results.push({ name: `action ${actionLabel(action)}`, ok: true, detail, show: true });
+            }
           } catch (cause) {
             results.push({
-              name: `action ${compact(action)}`,
+              name: `action ${actionLabel(action)}`,
               ok: false,
               detail: cause instanceof Error ? cause.message : String(cause),
             });
@@ -881,7 +1154,7 @@ async function runSuite(file, browser) {
         }
         for (const assertion of step.assert ?? []) {
           try {
-            const result = await runAssertion(page, assertion);
+            const result = await runAssertion(page, assertion, state);
             results.push({ name: compact(assertion), ...result });
           } catch (cause) {
             results.push({
@@ -923,6 +1196,7 @@ async function runSuite(file, browser) {
     }
     report.shots = shots;
     report.externalRequests = externalRequests;
+    report.pageErrors = pageErrors;
     // A media suite names the URLs Chrome has to request; they are aborted
     // like every other external URL, and only a URL the suite did not name
     // fails the run.
@@ -958,9 +1232,18 @@ function renderReport(report, stamp) {
   lines.push("| Step | Result | Detail |", "| --- | --- | --- |");
   for (const step of report.steps) {
     const detail = step.results
-      .map((result) => `${result.ok ? "ok" : "FAIL"} ${result.name}${result.ok ? "" : ` (${result.detail})`}`)
+      .map((result) => {
+        const shown = result.ok !== true || result.show === true;
+        return `${result.ok ? "ok" : "FAIL"} ${result.name}${shown ? ` (${result.detail})` : ""}`;
+      })
       .join("; ");
     lines.push(`| ${step.title} | ${step.ok ? "pass" : "FAIL"} | ${detail} |`);
+  }
+  if (Array.isArray(report.pageErrors) && report.pageErrors.length > 0) {
+    lines.push("", "### Page errors", "");
+    for (const entry of report.pageErrors) {
+      lines.push(`- \`${entry.kind}\` in ${entry.step}: ${entry.message}`);
+    }
   }
   if (report.shots !== undefined) {
     lines.push("", "### Screenshots", "");
