@@ -1,0 +1,13 @@
+# Gitleaks allowlist - false positives only.
+#
+# Every allowlist row MUST have a `# Reason:` line directly above it.
+# Gitleaks ignores comment lines, so the reason stays in the file without
+# changing the fingerprint it matches.
+#
+# Format:
+#   # Reason: <why this finding is a false positive>
+#   <file>:<rule-id>:<line>
+#
+# Add a row only after confirming the finding is a false positive. Never
+# allowlist a live credential: rotate it, remove it from the working tree,
+# and purge it from history instead.
