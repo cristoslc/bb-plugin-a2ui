@@ -1,6 +1,6 @@
 # UAT coverage map
 
-This map names the promise each operator-assisted suite proves. Every suite drives the real fence renderer in the screenshot harness with real DOM events, and the runner aborts every request that leaves the harness origin.
+This map names the promise each operator-assisted suite proves. Every suite drives the real fence renderer in the screenshot harness with real DOM events, and the runner aborts every request that leaves the harness origin. A suite that proves a live update pushes a second fence body into the mounted card with `push_stream`, so the new reply has to render without losing what the reader typed, opened, or selected.
 
 Steps counts the rows in that suite's generated report table. Each report ends with one network check row, so a suite with two scripted steps reports three rows. Reports live beside this file as `docs/uat/<suite>.md`.
 
@@ -48,11 +48,17 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-proto-streaming.yaml` | A reply that is still streaming draws its complete lines, keeps the half-written tail quiet, and shows one surface. | 3 |
 | `tests/manual/a2ui/uat-proto-surfaces.yaml` | One reply can carry more than one surface, and the header counts them. | 2 |
 | `tests/manual/a2ui/uat-proto-whole-json.yaml` | A fence body holding one pretty-printed JSON object, rather than JSON Lines, still draws its surface. | 2 |
+| `tests/manual/a2ui/uat-roundtrip-form.yaml` | A filled form sends its exact action message, and a pushed reply changes the heading, writes a data path, and leaves the typed values in place on one card. | 2 |
 | `tests/manual/a2ui/uat-runner-verbs.yaml` | Every assertion and action verb the runner advertises is driven against the real renderer at least once. | 8 |
 | `tests/manual/a2ui/uat-slider-attributes.yaml` | A Slider carries the catalog min, max and step to the native range input, and the bound value stays inside that range. | 4 |
+| `tests/manual/a2ui/uat-streaming-to-closed.yaml` | A streaming partial reply draws what arrived with no diagnostic, and a closed full reply replaces it with the complete surface and no diagnostic row. | 2 |
 | `tests/manual/a2ui/uat-tabs-content.yaml` | Tabs shows its first panel by default, and a real click on the second tab replaces it with that tab's own content. | 4 |
 | `tests/manual/a2ui/uat-textfield.yaml` | Every TextField variant draws the native control its name promises, a placeholder reaches the attribute, and typing writes the bound value. | 5 |
+| `tests/manual/a2ui/uat-two-replies.yaml` | Two clicks across a pushed update, which renames and re-aims the second button, land both action messages in the composer in order. | 2 |
 | `tests/manual/a2ui/uat-typography.yaml` | A caption Text is visibly smaller than a body Text in the same row, measured from computed font size. | 2 |
+| `tests/manual/a2ui/uat-update-keeps-edits.yaml` | A pushed update to another component leaves the value the reader typed in its field. | 2 |
+| `tests/manual/a2ui/uat-update-keeps-modal.yaml` | A pushed update leaves an open Modal and its content on screen. | 2 |
+| `tests/manual/a2ui/uat-update-keeps-tab.yaml` | A pushed update leaves the second tab selected and its panel on screen. | 2 |
 | `tests/manual/a2ui/uat-video.yaml` | A Video draws a real video element with the stream's src, the posterUrl as its poster attribute, and native controls. | 2 |
 | `tests/manual/a2ui/uat-warning-does-not-block.yaml` | A duplicate component is a warning, not a stop: its row is shown, the last definition draws, and the button still sends. | 3 |
 
@@ -66,4 +72,4 @@ Three catalog validation promises are proved in `tests/catalog.test.ts` rather t
 
 ## Total
 
-47 suites. They script 88 steps, and each report adds one network check row, for 135 report rows in all.
+53 suites. They script 94 steps, and each report adds one network check row, for 147 report rows in all.

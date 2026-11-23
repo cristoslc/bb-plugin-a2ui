@@ -1,0 +1,63 @@
+# Operator-assisted E2E: a filled form sends the exact action message, then a
+# second reply updates the same mounted card. The heading changes and a path the
+# agent writes appears, while what the reader typed stays in the field and the
+# fence still draws one card.
+#
+# The action message is checked inline, before the push, so the assertion reads
+# the model the reader actually submitted.
+#
+# A pushed reply is the whole fence body the renderer receives, so it carries
+# its own createSurface. The surface id and component ids stay the same, which
+# is what keeps the mounted card and its local edits in place.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-roundtrip-form.yaml
+suite: a2ui-roundtrip-form
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"contact","sendDataModel":true,"dataModel":{"name":"","topic":"","status":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"contact","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["heading","name","topic","statusLine","submit"]},{"id":"heading","component":"Text","text":"Send a message"},{"id":"name","component":"TextField","label":"Your name","value":{"@path":"/name"}},{"id":"topic","component":"TextField","label":"Topic","value":{"@path":"/topic"}},{"id":"statusLine","component":"Text","text":{"@call":"formatString","args":{"value":"Status: ${/status}"}}},{"id":"submitLabel","component":"Text","text":"Submit request"},{"id":"submit","component":"Button","variant":"primary","child":"submitLabel","action":{"event":{"name":"submitRequest","userMessage":"Submit the request","context":{"name":{"@path":"/name"}}}}}]}}
+
+steps:
+  - id: form-sends-then-updates-in-place
+    title: The filled form sends its exact message, then the pushed reply changes the heading and the model without losing the typed values
+    goto: "?status=closed"
+    actions:
+      - type: { label: Your name, text: "Ada" }
+      - type: { label: Topic, text: "Access" }
+      - click: { text: "Submit request" }
+      - assert:
+          composer_exact: |-
+            [a2ui action] submitRequest (surface contact)
+
+            Submit the request
+
+            context:
+            ```json
+            {
+              "name": "Ada"
+            }
+            ```
+
+            data model:
+            ```json
+            {
+              "name": "Ada",
+              "topic": "Access",
+              "status": ""
+            }
+            ```
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"contact","sendDataModel":true,"dataModel":{"name":"","topic":"","status":""},"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["heading","name","topic","statusLine","submit"]},{"id":"heading","component":"Text","text":"Send a message"},{"id":"name","component":"TextField","label":"Your name","value":{"@path":"/name"}},{"id":"topic","component":"TextField","label":"Topic","value":{"@path":"/topic"}},{"id":"statusLine","component":"Text","text":{"@call":"formatString","args":{"value":"Status: ${/status}"}}},{"id":"submitLabel","component":"Text","text":"Submit request"},{"id":"submit","component":"Button","variant":"primary","child":"submitLabel","action":{"event":{"name":"submitRequest","userMessage":"Submit the request","context":{"name":{"@path":"/name"}}}}}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"contact","components":[{"id":"heading","component":"Text","text":"Request received"},{"id":"submitLabel","component":"Text","text":"Send another request"}]}}
+            {"version":"1.0","updateDataModel":{"surfaceId":"contact","path":"/status","value":"received"}}
+    assert:
+      - text: "Request received"
+      - text_not: "Send a message"
+      - text: "Status: received"
+      - text: "1 surface"
+      - count: { selector: '[data-uat-fence] > div', equals: 1 }
+      - input_value: { label: Your name, value: "Ada" }
+      - input_value: { label: Topic, value: "Access" }

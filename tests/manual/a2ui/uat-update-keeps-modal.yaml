@@ -1,0 +1,35 @@
+# Operator-assisted E2E: an open Modal stays open when a second reply updates
+# the card. The panel and its content must still be on screen, so a push cannot
+# quietly remount the modal and drop the reader's place.
+#
+# The panel is checked inline before the push and again after it. A pushed
+# reply carries its own createSurface with the same ids, which keeps the mounted
+# Modal instance and its open state.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-update-keeps-modal.yaml
+suite: a2ui-update-keeps-modal
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24."}]}}
+
+steps:
+  - id: open-modal-survives-an-update
+    title: A pushed update leaves the open panel and its content on screen
+    goto: "?status=closed"
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+      - assert:
+          count: { selector: 'button[aria-label="Close"]', equals: 1 }
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false,"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24."}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"title","component":"Text","text":"Reservation confirmed"}]}}
+    assert:
+      - text: "Reservation confirmed"
+      - text: "Reservation summary"
+      - text: "Two guests on Dec 24."
+      - count: { selector: 'button[aria-label="Close"]', equals: 1 }
+      - count: { selector: '[data-uat-fence] > div', equals: 1 }

@@ -19,7 +19,15 @@
  * computed value; the property may be written as `object-fit` or `objectFit`.
  *
  * Actions: click, type, slider_to, toggle, select_option, tab, modal_open,
- * modal_close, source_toggle, wait.
+ * modal_close, source_toggle, push_stream, wait.
+ *
+ * `push_stream` takes `{ code, status }` and hands it to the harness's
+ * `window.__uatPushStream`. The fence keeps its mounted instance, so edits, the
+ * open tab and the open modal survive, the way a second agent reply updates a
+ * card in chat. The action waits until the pushed frame has rendered.
+ *
+ * An entry in `actions` may be `{ assert: <assertion> }`. It runs in place, so
+ * a suite can check a partial stream, push the next reply, then check again.
  *
  * A step may set `viewport: { width, height }` to run at a chosen size. The
  * default is 1280x820; the screenshots at the end of a run always cover both
@@ -292,6 +300,27 @@ async function runAction(page, action) {
     });
     if (info === null) throw new Error('source_toggle: no button labelled Source or Hide source');
     await page.mouse.click(info.x, info.y);
+    await sleep(100);
+    return;
+  }
+  if (action.push_stream !== undefined) {
+    const payload = action.push_stream;
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("push_stream: needs an object with code and an optional status");
+    }
+    const outcome = await page.evaluate(async (next) => {
+      const push = window.__uatPushStream;
+      if (typeof push !== "function") {
+        return { error: "the harness exposes no __uatPushStream" };
+      }
+      try {
+        await push(next);
+        return { ok: true };
+      } catch (cause) {
+        return { error: cause instanceof Error ? cause.message : String(cause) };
+      }
+    }, payload);
+    if (outcome.error !== undefined) throw new Error(`push_stream: ${outcome.error}`);
     await sleep(100);
     return;
   }
@@ -825,6 +854,21 @@ async function runSuite(file, browser) {
         results.push({ name: "page mounts the harness", ok: false, detail: `${navError} ${body}` });
       } else {
         for (const action of step.actions ?? []) {
+          // An inline assert checks the page between two actions, so a suite
+          // can inspect a partial stream before the next push replaces it.
+          if (action !== null && typeof action === "object" && action.assert !== undefined) {
+            try {
+              const result = await runAssertion(page, action.assert);
+              results.push({ name: compact(action.assert), ...result });
+            } catch (cause) {
+              results.push({
+                name: compact(action.assert),
+                ok: false,
+                detail: cause instanceof Error ? cause.message : String(cause),
+              });
+            }
+            continue;
+          }
           try {
             await runAction(page, action);
           } catch (cause) {

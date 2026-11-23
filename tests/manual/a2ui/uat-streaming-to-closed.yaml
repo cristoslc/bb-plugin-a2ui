@@ -1,0 +1,53 @@
+# Operator-assisted E2E: a reply that starts closed receives a streaming
+# partial stream, then a closed full stream on the same mounted fence.
+#
+# The partial stream ends mid-message on purpose. While the fence reports
+# streaming that tail is pending, so the complete lines above it draw with no
+# diagnostic. The closed stream replaces the body, and the finished surface
+# must show no diagnostic row at all.
+#
+# The checks sit between the two pushes, so a passing run proves the card drew
+# the partial reply before the complete one arrived.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-streaming-to-closed.yaml
+suite: a2ui-streaming-to-closed
+defaults:
+  theme: dark
+
+steps:
+  - id: partial-stream-then-closed-reply
+    title: A streaming partial reply draws what arrived, and a closed full reply replaces it with no diagnostic
+    goto: "?status=closed"
+    actions:
+      - assert:
+          text: "no surface"
+      - push_stream:
+          status: streaming
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"draft"}}
+            {"version":"1.0","updateComponents":{"surfaceId":"draft","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","note"]},{"id":"title","component":"Text","text":"Draft plan"},{"id":"note","component":"Text","text":"Three stops so far."}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"draft","components":[{"id":"st
+      - assert:
+          text: "Draft plan"
+      - assert:
+          text: "Three stops so far."
+      - assert:
+          text: "1 surface"
+      - assert:
+          text_not: "MALFORMED_MESSAGE"
+      - assert:
+          text_not: "waiting for a surface"
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"draft"}}
+            {"version":"1.0","updateComponents":{"surfaceId":"draft","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","note","fourth"]},{"id":"title","component":"Text","text":"Final plan"},{"id":"note","component":"Text","text":"Four stops are booked."},{"id":"fourth","component":"Text","text":"The last stop is the coach station."}]}}
+    assert:
+      - text: "Final plan"
+      - text: "Four stops are booked."
+      - text: "The last stop is the coach station."
+      - text_not: "Draft plan"
+      - text_not: "Three stops so far."
+      - text: "1 surface"
+      - count: { selector: '[data-uat-fence] li', equals: 0 }
+      - count: { selector: '[data-uat-fence] > div', equals: 1 }

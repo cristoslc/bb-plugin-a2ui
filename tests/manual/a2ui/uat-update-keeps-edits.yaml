@@ -1,0 +1,37 @@
+# Operator-assisted E2E: an agent update that touches a different component
+# leaves the reader's typed value in place.
+#
+# The value is checked once inline, before the push, and again after it, so a
+# passing run proves the field held the text across the update rather than
+# accepting an initial value.
+#
+# A pushed reply is the whole fence body the renderer receives, so it carries
+# its own createSurface with the same surface and component ids. That rebuilds
+# the protocol state while the mounted field keeps its local edit.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-update-keeps-edits.yaml
+suite: a2ui-update-keeps-edits
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","note","name"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"note","component":"Text","text":"Old note from the agent."},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}}]}}
+
+steps:
+  - id: typed-value-survives-an-unrelated-update
+    title: An update to a different component leaves the typed value in the field
+    goto: "?status=closed"
+    actions:
+      - type: { label: Display name, text: "Grace" }
+      - assert:
+          input_value: { label: Display name, value: "Grace" }
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":""},"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","note","name"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"note","component":"Text","text":"Old note from the agent."},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"note","component":"Text","text":"New note from the agent."}]}}
+    assert:
+      - input_value: { label: Display name, value: "Grace" }
+      - text: "New note from the agent."
+      - text_not: "Old note from the agent."
+      - count: { selector: '[data-uat-fence] > div', equals: 1 }

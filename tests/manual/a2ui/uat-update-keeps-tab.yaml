@@ -1,0 +1,36 @@
+# Operator-assisted E2E: a selected tab stays selected when a second reply
+# updates the card. The second panel, not the first, must still be the one on
+# screen after the push.
+#
+# aria-selected is read from both tab buttons before and after the update, so a
+# passing run proves the selection moved and then survived. A pushed reply
+# carries its own createSurface with the same ids, which keeps the mounted Tabs
+# instance and its selection.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-update-keeps-tab.yaml
+suite: a2ui-update-keeps-tab
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"guide","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"guide","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","panels"]},{"id":"title","component":"Text","text":"Field guide chapters"},{"id":"panels","component":"Tabs","tabs":[{"title":"Overview","child":"overview"},{"title":"Details","child":"details"}]},{"id":"overview","component":"Text","text":"Overview panel: the route crosses three valleys."},{"id":"details","component":"Text","text":"Details panel: carry two liters of water per person."}]}}
+
+steps:
+  - id: selected-tab-survives-an-update
+    title: The second tab stays selected and keeps its panel after a pushed update
+    goto: "?status=closed"
+    actions:
+      - tab: { title: Details }
+      - assert:
+          attr: { selector: 'button[role="tab"]:nth-child(2)', name: aria-selected, equals: "true" }
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"guide","sendDataModel":false,"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","panels"]},{"id":"title","component":"Text","text":"Field guide chapters"},{"id":"panels","component":"Tabs","tabs":[{"title":"Overview","child":"overview"},{"title":"Details","child":"details"}]},{"id":"overview","component":"Text","text":"Overview panel: the route crosses three valleys."},{"id":"details","component":"Text","text":"Details panel: carry two liters of water per person."}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"guide","components":[{"id":"title","component":"Text","text":"Field guide chapters, revised"}]}}
+    assert:
+      - text: "Field guide chapters, revised"
+      - text: "Details panel: carry two liters of water per person."
+      - text_not: "Overview panel: the route crosses three valleys."
+      - attr: { selector: 'button[role="tab"]:nth-child(1)', name: aria-selected, equals: "false" }
+      - attr: { selector: 'button[role="tab"]:nth-child(2)', name: aria-selected, equals: "true" }

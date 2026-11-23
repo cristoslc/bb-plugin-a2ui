@@ -1,0 +1,47 @@
+# Operator-assisted E2E: two clicks across one live update land two messages in
+# the composer, in order.
+#
+# The first click sends Approve. A second reply renames the second button and
+# re-aims its action, and the second click sends that new action. The composer
+# is asserted exactly, so an out-of-order or duplicated message fails the run.
+#
+# The new label is checked between the push and the second click, so the click
+# cannot pass on the old button.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-two-replies.yaml
+suite: a2ui-two-replies
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"review","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"review","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","approve","deny"]},{"id":"title","component":"Text","text":"Review the request"},{"id":"approveLabel","component":"Text","text":"Approve"},{"id":"approve","component":"Button","variant":"primary","child":"approveLabel","action":{"event":{"name":"approve"}}},{"id":"denyLabel","component":"Text","text":"Deny"},{"id":"deny","component":"Button","variant":"borderless","child":"denyLabel","action":{"event":{"name":"deny"}}}]}}
+
+steps:
+  - id: second-reply-changes-the-second-button
+    title: A click, a pushed update that renames and re-aims the second button, and a second click land both messages in order
+    goto: "?status=closed"
+    actions:
+      - click: { text: "Approve" }
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"review","sendDataModel":false,"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","approve","deny"]},{"id":"title","component":"Text","text":"Review the request"},{"id":"approveLabel","component":"Text","text":"Approve"},{"id":"approve","component":"Button","variant":"primary","child":"approveLabel","action":{"event":{"name":"approve"}}},{"id":"denyLabel","component":"Text","text":"Deny"},{"id":"deny","component":"Button","variant":"borderless","child":"denyLabel","action":{"event":{"name":"deny"}}}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"review","components":[{"id":"denyLabel","component":"Text","text":"Deny and archive"},{"id":"deny","component":"Button","variant":"borderless","child":"denyLabel","action":{"event":{"name":"denyAndArchive"}}}]}}
+      - assert:
+          text: "Deny and archive"
+      - click: { text: "Deny and archive" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] approve (surface review)
+
+          context:
+          ```json
+          {}
+          ```
+
+          [a2ui action] denyAndArchive (surface review)
+
+          context:
+          ```json
+          {}
+          ```
