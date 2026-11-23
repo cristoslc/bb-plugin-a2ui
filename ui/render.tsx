@@ -173,13 +173,13 @@ function Video({ component, ...props }: NodeProps) {
   if (url === null) return <UnsupportedMedia what="videos" />;
   const poster = resolvedText(props, component.posterUrl).text;
   const posterUrl = poster === "" ? undefined : safeMediaUrl(poster) ?? undefined;
-  const description = resolvedText(props, component.description).text;
+  // The Basic Catalog does not define description on Video. Reading it here
+  // would draw a name the validator calls ignored, so the property is dropped.
   return (
     <video
       src={url}
       poster={posterUrl}
       controls
-      aria-label={description === "" ? undefined : description}
       className="w-full rounded-md bg-muted"
       style={weightStyle(component)}
     />

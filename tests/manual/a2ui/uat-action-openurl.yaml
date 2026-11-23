@@ -2,9 +2,10 @@
 # URL to window.open and writes nothing to the composer.
 #
 # window.open is replaced before the app loads, so the popup URL is captured
-# and no tab opens. The URL is declared under external, matching the media
-# suites: Chrome is allowed to build that request, and the runner aborts it
-# before it leaves the machine.
+# and no tab opens. popup_count proves it was called exactly once, and
+# popup_url proves the argument was the declared URL. The URL is declared under
+# external, matching the media suites: Chrome is allowed to build that request,
+# and the runner aborts it before it leaves the machine.
 #
 # Run: npm run uat -- tests/manual/a2ui/uat-action-openurl.yaml
 suite: a2ui-action-openurl
@@ -23,6 +24,7 @@ steps:
     actions:
       - click: { text: "Open the handbook" }
     assert:
+      - popup_count: { equals: 1 }
       - popup_url: { equals: "https://example.com/a2ui/handbook" }
       - composer_empty: {}
       - text_not: "openUrl only accepts http and https URLs."

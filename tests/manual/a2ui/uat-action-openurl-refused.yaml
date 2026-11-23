@@ -2,7 +2,8 @@
 # the renderer's refusal text, and leaves the composer empty.
 #
 # No external URL is declared, because a refused scheme must never reach the
-# network or the popup stub with a usable address.
+# network or the popup stub with a usable address. popup_count proves the
+# window.open stub recorded no call at all.
 #
 # Run: npm run uat -- tests/manual/a2ui/uat-action-openurl-refused.yaml
 suite: a2ui-action-openurl-refused
@@ -20,5 +21,6 @@ steps:
       - click: { text: "Run the script link" }
     assert:
       - text: "openUrl only accepts http and https URLs."
+      - popup_count: { equals: 0 }
       - composer_empty: {}
       - text_not: "[a2ui action]"

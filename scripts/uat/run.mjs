@@ -8,7 +8,10 @@
  *
  * Assertions: text, text_not, theme, diagnostic, button_blocked,
  * composer_exact, composer_empty, slider_value, input_value, checked,
- * selected, count, attr, style, popup_url, visible, hit_test.
+ * selected, count, attr, style, popup_url, popup_count, visible, hit_test.
+ *
+ * `popup_count` takes `{ equals }` and counts the URLs recorded by the
+ * window.open stub, so a refused openUrl proves zero calls.
  *
  * `attr` and `style` read exactly one element: a selector matching zero or
  * several fails the assertion with a count, so a test never passes on the
@@ -605,6 +608,17 @@ async function runAssertion(page, assertion) {
         urls.length === 0
           ? "window.open was never called"
           : `window.open received ${compact(urls)}, last ${JSON.stringify(last)}`,
+    };
+  }
+  if (key === "popup_count") {
+    const urls = await page.evaluate(() => window.__uatPopups ?? []);
+    const expected = Number(value.equals);
+    const ok = urls.length === expected;
+    return {
+      ok,
+      detail: `window.open was called ${urls.length} time(s), expected ${expected}${
+        urls.length === 0 ? "" : `: ${compact(urls)}`
+      }`,
     };
   }
   if (key === "visible") {
