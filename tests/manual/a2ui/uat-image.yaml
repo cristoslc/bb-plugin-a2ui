@@ -1,0 +1,28 @@
+# Operator-assisted E2E: an https Image draws a real img element with the URL
+# the stream gave, the description as its alt text, and the catalog fit value
+# as computed object-fit.
+#
+# The request is aborted by the runner before it leaves the machine, so the
+# element is asserted without any network traffic.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-image.yaml
+suite: a2ui-image
+defaults:
+  theme: dark
+external:
+  - https://example.com/media/harbor-dawn.png
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"gallery","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"gallery","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","harbor"]},{"id":"title","component":"Text","text":"Photo of the week"},{"id":"harbor","component":"Image","url":"https://example.com/media/harbor-dawn.png","description":"Harbor at dawn","fit":"cover"}]}}
+
+steps:
+  - id: image-draws-src-alt-and-fit
+    title: The Image element carries its exact src, its description as alt, and object-fit cover
+    goto: "?status=closed"
+    assert:
+      - count: { selector: 'img[alt="Harbor at dawn"]', equals: 1 }
+      - attr: { selector: 'img[alt="Harbor at dawn"]', name: src, equals: "https://example.com/media/harbor-dawn.png" }
+      - attr: { selector: 'img[alt="Harbor at dawn"]', name: alt, equals: "Harbor at dawn" }
+      - style: { selector: 'img[alt="Harbor at dawn"]', property: object-fit, equals: cover }
+      - text: "Photo of the week"
+      - text_not: "This renderer only loads http and https images."

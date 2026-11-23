@@ -1,0 +1,35 @@
+# Operator-assisted E2E: a vertical List computes flex-direction column, a
+# horizontal List computes row, and both paint their children in stream order.
+#
+# Order is proven without reading component internals: every Text child gets a
+# distinct weight, which the renderer turns into an inline flex value, so the
+# nth child's computed flex-grow names that child unambiguously.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-list.yaml
+suite: a2ui-list
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"lists","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"lists","components":[{"id":"root","component":"Row","children":["vertical","horizontal"]},{"id":"vertical","component":"List","direction":"vertical","children":["vOne","vTwo"]},{"id":"vOne","component":"Text","text":"Vertical item one","weight":1},{"id":"vTwo","component":"Text","text":"Vertical item two","weight":2},{"id":"horizontal","component":"List","direction":"horizontal","children":["hOne","hTwo"]},{"id":"hOne","component":"Text","text":"Horizontal item one","weight":3},{"id":"hTwo","component":"Text","text":"Horizontal item two","weight":1}]}}
+
+steps:
+  - id: vertical-list-computes-column
+    title: A vertical List computes flex-direction column and keeps its two children in order
+    goto: "?status=closed"
+    assert:
+      - style: { selector: ".flex-col.gap-2", property: flex-direction, equals: column }
+      - style: { selector: ".flex-col.gap-2 > div:nth-child(1)", property: flex-grow, equals: "1" }
+      - style: { selector: ".flex-col.gap-2 > div:nth-child(2)", property: flex-grow, equals: "2" }
+      - text: "Vertical item one"
+      - text: "Vertical item two"
+
+  - id: horizontal-list-computes-row
+    title: A horizontal List computes flex-direction row and keeps its two children in order
+    goto: "?status=closed"
+    assert:
+      - style: { selector: ".flex-row.overflow-x-auto", property: flex-direction, equals: row }
+      - style: { selector: ".flex-row.overflow-x-auto > div:nth-child(1)", property: flex-grow, equals: "3" }
+      - style: { selector: ".flex-row.overflow-x-auto > div:nth-child(2)", property: flex-grow, equals: "1" }
+      - text: "Horizontal item one"
+      - text: "Horizontal item two"
