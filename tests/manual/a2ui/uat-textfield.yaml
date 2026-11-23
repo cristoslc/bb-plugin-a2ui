@@ -1,0 +1,56 @@
+# Operator-assisted E2E: every TextField variant draws the native control its
+# name promises, a placeholder reaches the attribute, and real typing writes
+# the bound value the data model then renders.
+#
+# The textarea is clicked at its own box and typed into. The password and
+# number fields are native inputs, so their type attribute is read straight
+# from the DOM. Nothing calls a React handler.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-textfield.yaml
+suite: a2ui-textfield
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"notes":"","phrase":"","badge":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","notes","notesEcho","phrase","phraseEcho","badge","badgeEcho"]},{"id":"title","component":"Text","text":"Profile notes"},{"id":"notes","component":"TextField","label":"Draft notes","variant":"longText","placeholder":"Write the closing paragraph here","value":{"@path":"/notes"}},{"id":"notesEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Notes bound: ${/notes}"}}},{"id":"phrase","component":"TextField","label":"Vault phrase","variant":"obscured","placeholder":"Choose a phrase only you know","value":{"@path":"/phrase"}},{"id":"phraseEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Phrase bound: ${/phrase}"}}},{"id":"badge","component":"TextField","label":"Badge count","variant":"number","value":{"@path":"/badge"}},{"id":"badgeEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Badge bound: ${/badge}"}}}]}}
+
+steps:
+  - id: long-text-is-a-textarea
+    title: longText draws a three-row textarea and real typing writes the bound value
+    goto: "?status=closed"
+    actions:
+      - type: { label: Draft notes, text: "The museum closes at six on Sundays." }
+    assert:
+      - count: { selector: textarea, equals: 1 }
+      - attr: { selector: 'textarea[placeholder="Write the closing paragraph here"]', name: rows, equals: "3" }
+      - input_value: { label: Draft notes, value: "The museum closes at six on Sundays." }
+      - text: "Notes bound: The museum closes at six on Sundays."
+
+  - id: obscured-is-a-password-input
+    title: obscured draws type=password and real typing writes the bound value
+    goto: "?status=closed"
+    actions:
+      - type: { label: Vault phrase, text: "amber-lantern-42" }
+    assert:
+      - attr: { selector: 'input[type="password"]', name: type, equals: password }
+      - input_value: { label: Vault phrase, value: "amber-lantern-42" }
+      - text: "Phrase bound: amber-lantern-42"
+
+  - id: number-is-a-number-input
+    title: number draws type=number and real typing writes the bound value
+    goto: "?status=closed"
+    actions:
+      - type: { label: Badge count, text: "42" }
+    assert:
+      - attr: { selector: 'input[type="number"]', name: type, equals: number }
+      - input_value: { label: Badge count, value: "42" }
+      - text: "Badge bound: 42"
+
+  - id: placeholder-reaches-the-attribute
+    title: A placeholder is present on the native input as its placeholder attribute
+    goto: "?status=closed"
+    assert:
+      - attr:
+          selector: 'input[placeholder="Choose a phrase only you know"]'
+          name: placeholder
+          equals: "Choose a phrase only you know"

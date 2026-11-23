@@ -1,0 +1,40 @@
+# Operator-assisted E2E: a multipleSelection ChoicePicker holds more than one
+# value at a time, writes both into the bound list, and removing one leaves the
+# other in place.
+#
+# Both chips are clicked at their own painted boxes. The bound Text renders the
+# data model list directly, so the comma-joined value is what the binding holds
+# rather than what a chip reports about itself.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-choice-multiple.yaml
+suite: a2ui-choice-multiple
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"workshop","sendDataModel":true,"dataModel":{"extras":[]}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"workshop","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","extras","extrasEcho"]},{"id":"title","component":"Text","text":"Workshop extras"},{"id":"extras","component":"ChoicePicker","label":"Workshop extras","variant":"multipleSelection","displayStyle":"chips","value":{"@path":"/extras"},"options":[{"value":"espresso-bar","label":"Espresso bar"},{"value":"quiet-room","label":"Quiet room"},{"value":"late-checkout","label":"Late checkout"}]},{"id":"extrasEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Extras bound: ${/extras}"}}}]}}
+
+steps:
+  - id: two-chips-active-at-once
+    title: Clicking two chips leaves both active and the bound list holds both values
+    goto: "?status=closed"
+    actions:
+      - select_option: { label: Workshop extras, option: Espresso bar }
+      - select_option: { label: Workshop extras, option: Quiet room }
+    assert:
+      - selected: { label: Workshop extras, option: Espresso bar, value: true }
+      - selected: { label: Workshop extras, option: Quiet room, value: true }
+      - selected: { label: Workshop extras, option: Late checkout, value: false }
+      - text: "Extras bound: espresso-bar,quiet-room"
+
+  - id: deselecting-one-keeps-the-other
+    title: Clicking an active chip removes only that value and leaves the other bound
+    goto: "?status=closed"
+    actions:
+      - select_option: { label: Workshop extras, option: Espresso bar }
+      - select_option: { label: Workshop extras, option: Quiet room }
+      - select_option: { label: Workshop extras, option: Espresso bar }
+    assert:
+      - selected: { label: Workshop extras, option: Espresso bar, value: false }
+      - selected: { label: Workshop extras, option: Quiet room, value: true }
+      - text: "Extras bound: quiet-room"

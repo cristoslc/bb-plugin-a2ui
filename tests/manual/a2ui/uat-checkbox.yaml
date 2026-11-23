@@ -1,0 +1,62 @@
+# Operator-assisted E2E: a CheckBox toggles through real clicks, its bound
+# boolean follows in the data model, and an action carries that value into the
+# exact composer text.
+#
+# The Radix checkbox is clicked at its own painted box by its visible label.
+# The bound Text renders the data model boolean, so the state shown is the
+# written value rather than the control's own attribute.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-checkbox.yaml
+suite: a2ui-checkbox
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"prefs","sendDataModel":true,"dataModel":{"newsletter":false}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"prefs","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","newsletter","flagEcho","saveLabel","save"]},{"id":"title","component":"Text","text":"Notification preferences"},{"id":"newsletter","component":"CheckBox","label":"Send me the monthly digest","value":{"@path":"/newsletter"}},{"id":"flagEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Digest flag: ${/newsletter}"}}},{"id":"saveLabel","component":"Text","text":"Save preferences"},{"id":"save","component":"Button","variant":"primary","child":"saveLabel","action":{"event":{"name":"savePreferences","userMessage":"Save preferences","context":{"newsletter":{"@path":"/newsletter"}}}}}]}}
+
+steps:
+  - id: checkbox-turns-on
+    title: Clicking the unchecked box turns it on and writes true into the bound boolean
+    goto: "?status=closed"
+    actions:
+      - toggle: { label: Send me the monthly digest }
+    assert:
+      - checked: { label: Send me the monthly digest, value: true }
+      - text: "Digest flag: true"
+
+  - id: checkbox-turns-off
+    title: Clicking the checked box turns it off and writes false into the bound boolean
+    goto: "?status=closed"
+    actions:
+      - toggle: { label: Send me the monthly digest }
+      - toggle: { label: Send me the monthly digest }
+    assert:
+      - checked: { label: Send me the monthly digest, value: false }
+      - text: "Digest flag: false"
+
+  - id: action-carries-the-checked-value
+    title: After the box is on, the button sends its true value with the exact composer text
+    goto: "?status=closed"
+    actions:
+      - toggle: { label: Send me the monthly digest }
+      - click: { text: "Save preferences" }
+    assert:
+      - checked: { label: Send me the monthly digest, value: true }
+      - composer_exact: |-
+          [a2ui action] savePreferences (surface prefs)
+
+          Save preferences
+
+          context:
+          ```json
+          {
+            "newsletter": true
+          }
+          ```
+
+          data model:
+          ```json
+          {
+            "newsletter": true
+          }
+          ```

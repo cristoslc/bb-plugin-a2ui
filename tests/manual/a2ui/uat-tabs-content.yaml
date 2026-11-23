@@ -1,0 +1,50 @@
+# Operator-assisted E2E: Tabs shows its first panel by default and a real click
+# on the second tab replaces that panel with the second tab's own content.
+#
+# Each panel carries unique copy, so a text assertion cannot pass on the wrong
+# panel. aria-selected is read from the tab buttons themselves before and after
+# the click.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-tabs-content.yaml
+suite: a2ui-tabs-content
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"guide","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"guide","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","panels"]},{"id":"title","component":"Text","text":"Field guide chapters"},{"id":"panels","component":"Tabs","tabs":[{"title":"Overview","child":"overview"},{"title":"Details","child":"details"}]},{"id":"overview","component":"Column","children":["overviewLead","overviewMore"]},{"id":"overviewLead","component":"Text","text":"Overview panel: the route crosses three valleys."},{"id":"overviewMore","component":"Text","text":"Overview panel: start before dawn to reach the ridge by noon."},{"id":"details","component":"Column","children":["detailsLead","detailsMore"]},{"id":"detailsLead","component":"Text","text":"Details panel: carry two liters of water per person."},{"id":"detailsMore","component":"Text","text":"Details panel: the last spring is four kilometers from the pass."}]}}
+
+steps:
+  - id: first-panel-is-default
+    title: The first tab is selected and only the overview panel is shown
+    goto: "?status=closed"
+    assert:
+      - text: "Overview panel: the route crosses three valleys."
+      - text: "Overview panel: start before dawn to reach the ridge by noon."
+      - text_not: "Details panel: carry two liters of water per person."
+      - attr: { selector: 'button[role="tab"]:nth-child(1)', name: aria-selected, equals: "true" }
+      - attr: { selector: 'button[role="tab"]:nth-child(2)', name: aria-selected, equals: "false" }
+
+  - id: second-tab-replaces-the-panel
+    title: A real click on the second tab shows only the details panel and moves aria-selected
+    goto: "?status=closed"
+    actions:
+      - tab: { title: Details }
+    assert:
+      - text: "Details panel: carry two liters of water per person."
+      - text: "Details panel: the last spring is four kilometers from the pass."
+      - text_not: "Overview panel: the route crosses three valleys."
+      - text_not: "Overview panel: start before dawn to reach the ridge by noon."
+      - attr: { selector: 'button[role="tab"]:nth-child(1)', name: aria-selected, equals: "false" }
+      - attr: { selector: 'button[role="tab"]:nth-child(2)', name: aria-selected, equals: "true" }
+
+  - id: first-tab-returns-its-own-content
+    title: Clicking the first tab again brings the overview panel back and moves aria-selected
+    goto: "?status=closed"
+    actions:
+      - tab: { title: Details }
+      - tab: { title: Overview }
+    assert:
+      - text: "Overview panel: the route crosses three valleys."
+      - text_not: "Details panel: carry two liters of water per person."
+      - attr: { selector: 'button[role="tab"]:nth-child(1)', name: aria-selected, equals: "true" }
+      - attr: { selector: 'button[role="tab"]:nth-child(2)', name: aria-selected, equals: "false" }

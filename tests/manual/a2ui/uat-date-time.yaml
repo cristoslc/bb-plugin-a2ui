@@ -1,0 +1,51 @@
+# Operator-assisted E2E: DateTimeInput chooses its native control from the
+# enableDate and enableTime flags, and real typing writes each bound value.
+#
+# A date-only input is type=date, a time-only input is type=time, and an input
+# with both enabled is type=datetime-local. The datetime field starts with a
+# bound value, then real digits replace its date segments and leave the time
+# part intact, which is what a person sees when they type into the control.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-date-time.yaml
+suite: a2ui-date-time
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"schedule","sendDataModel":true,"dataModel":{"dateOnly":"","timeOnly":"","dateTime":"2027-01-02T00:00"}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"schedule","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","dateOnly","dateEcho","timeOnly","timeEcho","dateTime","dateTimeEcho"]},{"id":"title","component":"Text","text":"Schedule the session"},{"id":"dateOnly","component":"DateTimeInput","label":"Session date","value":{"@path":"/dateOnly"}},{"id":"dateEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Date bound: ${/dateOnly}"}}},{"id":"timeOnly","component":"DateTimeInput","label":"Session time","enableDate":false,"enableTime":true,"value":{"@path":"/timeOnly"}},{"id":"timeEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Time bound: ${/timeOnly}"}}},{"id":"dateTime","component":"DateTimeInput","label":"Session moment","enableDate":true,"enableTime":true,"value":{"@path":"/dateTime"}},{"id":"dateTimeEcho","component":"Text","text":{"@call":"formatString","args":{"value":"Moment bound: ${/dateTime}"}}}]}}
+
+steps:
+  - id: each-variant-draws-its-native-type
+    title: A date-only field is type=date, a time-only field is type=time, and both together is type=datetime-local
+    goto: "?status=closed"
+    assert:
+      - attr: { selector: 'input[type="date"]', name: type, equals: date }
+      - attr: { selector: 'input[type="time"]', name: type, equals: time }
+      - attr: { selector: 'input[type="datetime-local"]', name: type, equals: datetime-local }
+
+  - id: date-only-writes-the-bound-value
+    title: Typing into the date-only field writes the bound date
+    goto: "?status=closed"
+    actions:
+      - type: { label: Session date, text: "01022027" }
+    assert:
+      - input_value: { label: Session date, value: "2027-01-02" }
+      - text: "Date bound: 2027-01-02"
+
+  - id: time-only-writes-the-bound-value
+    title: Typing into the time-only field writes the bound time
+    goto: "?status=closed"
+    actions:
+      - type: { label: Session time, text: "0730AM" }
+    assert:
+      - input_value: { label: Session time, value: "07:30" }
+      - text: "Time bound: 07:30"
+
+  - id: datetime-writes-the-bound-value
+    title: Typing digits into the datetime field writes a new bound moment and keeps its time
+    goto: "?status=closed"
+    actions:
+      - type: { label: Session moment, text: "12312028" }
+    assert:
+      - input_value: { label: Session moment, value: "2028-12-31T00:00" }
+      - text: "Moment bound: 2028-12-31T00:00"
