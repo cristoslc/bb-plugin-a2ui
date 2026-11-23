@@ -18,6 +18,7 @@ import {
   resolveAbsolutePath,
   resolveAction,
   resolveDynamic,
+  safeMediaUrl,
   writePointer,
   type A2uiComponent,
   type A2uiSurface,
@@ -128,17 +129,6 @@ function Text({ component, ...props }: NodeProps) {
       {error === undefined ? <Markdown content={text} /> : <ErrorLine>{error}</ErrorLine>}
     </div>
   );
-}
-
-function safeMediaUrl(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (trimmed === "") return null;
-  try {
-    const url = new URL(trimmed);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
-  } catch {
-    return null;
-  }
 }
 
 function UnsupportedMedia({ what }: { what: string }) {

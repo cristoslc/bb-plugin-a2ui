@@ -12,6 +12,8 @@ import {
 import {
   isJsonObject,
   readPointer,
+  resolveDynamic,
+  safeMediaUrl,
   walkSurface,
   type A2uiState,
   type A2uiSurface,
@@ -21,6 +23,13 @@ import {
 } from "../shared/protocol";
 
 const COMMON_PROPS = new Set(["id", "component", "weight"]);
+
+/** Properties the renderer loads through `safeMediaUrl`. */
+const MEDIA_URL_PROPERTIES: Readonly<Record<string, readonly string[]>> = {
+  Image: ["url"],
+  Video: ["url", "posterUrl"],
+  AudioPlayer: ["url"],
+};
 
 export function validateState(state: A2uiState): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
@@ -134,7 +143,186 @@ function validateComponent(surface: A2uiSurface, component: A2uiComponent): Diag
     }
   }
 
+  diagnostics.push(...validateMediaUrls(surface, component));
+  diagnostics.push(...validateTabs(component));
+  diagnostics.push(...validateAction(surface, component));
+  diagnostics.push(...validateChildShape(component, catalog.required, catalog.properties));
+
   return diagnostics;
+}
+
+/** Every URL property must hold an http or https URL, resolved where possible. */
+function validateMediaUrls(surface: A2uiSurface, component: A2uiComponent): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  for (const property of MEDIA_URL_PROPERTIES[component.component] ?? []) {
+    if (!(property in component)) continue;
+    // The renderer treats an empty poster as no poster, so an empty value is not an error there.
+    const emptyAllowed = property === "posterUrl";
+    const problem = urlProblem(surface, component[property], emptyAllowed);
+    if (problem === null) continue;
+    diagnostics.push({
+      severity: "error",
+      code: "BAD_URL_SCHEME",
+      message: `Component "${component.id}" (${component.component}) sets "${property}" to ${problem}, but this renderer only loads http and https URLs.`,
+    });
+  }
+  return diagnostics;
+}
+
+/** Returns a display form of the bad URL, or null when there is nothing to judge. */
+function urlProblem(surface: A2uiSurface, value: unknown, emptyAllowed = false): string | null {
+  if (value === undefined || value === null) return null;
+  const resolved = resolveDynamic(value, { dataModel: surface.dataModel });
+  if (!resolved.ok) return null;
+  const result = resolved.value;
+  if (result === undefined || result === null) return null;
+  if (typeof result === "string") {
+    if (result.trim() === "" && emptyAllowed) return null;
+    if (safeMediaUrl(result) !== null) return null;
+    return JSON.stringify(result);
+  }
+  return typeName(result);
+}
+
+/** Every tab entry needs a title and one child id, or it draws blank. */
+function validateTabs(component: A2uiComponent): Diagnostic[] {
+  if (component.component !== "Tabs" || !("tabs" in component)) return [];
+  const tabs = component.tabs;
+  if (!Array.isArray(tabs)) {
+    return [
+      {
+        severity: "error",
+        code: "BAD_TAB_ENTRY",
+        message: `Component "${component.id}" (Tabs) needs "tabs" to be an array of entries with a title and a child.`,
+      },
+    ];
+  }
+  const diagnostics: Diagnostic[] = [];
+  tabs.forEach((tab, index) => {
+    const position = index + 1;
+    if (!isJsonObject(tab)) {
+      diagnostics.push({
+        severity: "error",
+        code: "BAD_TAB_ENTRY",
+        message: `Component "${component.id}" (Tabs) has a tab ${position} that is ${shapeName(tab)}, not an object with a title and a child.`,
+      });
+      return;
+    }
+    const title = tab.title;
+    if (!(typeof title === "string" && title.trim() !== "") && !isDynamic(title)) {
+      diagnostics.push({
+        severity: "error",
+        code: "BAD_TAB_ENTRY",
+        message: `Component "${component.id}" (Tabs) has a tab ${position} without a string "title". The renderer would draw a nameless tab.`,
+      });
+    }
+    if (typeof tab.child !== "string" || tab.child.trim() === "") {
+      diagnostics.push({
+        severity: "error",
+        code: "BAD_TAB_ENTRY",
+        message: `Component "${component.id}" (Tabs) has a tab ${position} without a string "child". The renderer would draw an empty panel.`,
+      });
+    }
+  });
+  return diagnostics;
+}
+
+/** A Button action must resolve to an event or a function call on click. */
+function validateAction(surface: A2uiSurface, component: A2uiComponent): Diagnostic[] {
+  if (component.component !== "Button" || !("action" in component)) return [];
+  const action = component.action;
+  if (!isJsonObject(action)) {
+    return [badAction(component, `"action" must be an object carrying "event" or "functionCall". A click would send nothing.`)];
+  }
+  if ("event" in action) {
+    const event = action.event;
+    if (!isJsonObject(event) || typeof event.name !== "string" || event.name.trim() === "") {
+      return [badAction(component, `the event action needs a non-empty "name". A click would send nothing.`)];
+    }
+    return [];
+  }
+  if ("functionCall" in action) {
+    const call = action.functionCall;
+    if (!isJsonObject(call) || typeof call["@call"] !== "string" || call["@call"] === "") {
+      return [badAction(component, `the functionCall action needs a non-empty "@call". A click would send nothing.`)];
+    }
+    if (call["@call"] === "openUrl") return validateOpenUrl(surface, component, call);
+    return [];
+  }
+  return [badAction(component, `"action" carries neither "event" nor "functionCall". A click would send nothing.`)];
+}
+
+function validateOpenUrl(surface: A2uiSurface, component: A2uiComponent, call: Json): Diagnostic[] {
+  if (!isJsonObject(call) || !isJsonObject(call.args) || !("url" in call.args)) {
+    return [badAction(component, `openUrl needs an "args" object with a "url".`)];
+  }
+  const problem = urlProblem(surface, call.args.url);
+  if (problem === null) return [];
+  return [
+    {
+      severity: "error",
+      code: "BAD_URL_SCHEME",
+      message: `Component "${component.id}" (Button) opens ${problem} with openUrl, but this renderer only accepts http and https URLs.`,
+    },
+  ];
+}
+
+function badAction(component: A2uiComponent, detail: string): Diagnostic {
+  return {
+    severity: "error",
+    code: "BAD_ACTION",
+    message: `Component "${component.id}" (Button) has an action the renderer refuses: ${detail}`,
+  };
+}
+
+/** `child` is one id, and `children` is an id array or a template object. */
+function validateChildShape(
+  component: A2uiComponent,
+  required: readonly string[],
+  properties: readonly string[],
+): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  if (required.includes("child") && "child" in component) {
+    const child = component.child;
+    if (typeof child !== "string" || child.trim() === "") {
+      diagnostics.push({
+        severity: "error",
+        code: "BAD_CHILD_SHAPE",
+        message: `Component "${component.id}" (${component.component}) needs "child" to be one component id string, but it is ${shapeName(child)}. The renderer would draw no child.`,
+      });
+    }
+  }
+  if (properties.includes("children") && "children" in component) {
+    const children = component.children;
+    if (!isChildList(children)) {
+      diagnostics.push({
+        severity: "error",
+        code: "BAD_CHILD_SHAPE",
+        message: `Component "${component.id}" (${component.component}) needs "children" to be an array of id strings or a template object with "componentId" and "path", but it is ${shapeName(children)}.`,
+      });
+    }
+  }
+  return diagnostics;
+}
+
+function isChildList(value: unknown): boolean {
+  if (Array.isArray(value)) return value.every((entry) => typeof entry === "string" && entry !== "");
+  return isJsonObject(value) && typeof value.componentId === "string" && typeof value.path === "string";
+}
+
+function isDynamic(value: unknown): boolean {
+  return isJsonObject(value) && ("@path" in value || "@call" in value);
+}
+
+/** A short description of a malformed value for the diagnostic message. */
+function shapeName(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.every((entry) => typeof entry === "string") ? "an array of ids" : "an array that includes a non-string entry";
+  }
+  if (value === null) return "null";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (isJsonObject(value)) return "an object that is not a template";
+  return typeof value;
 }
 
 function scanFunctions(value: Json | A2uiComponent, found: string[] = []): string[] {

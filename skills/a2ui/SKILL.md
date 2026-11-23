@@ -36,8 +36,9 @@ the whole surface fits. A second `createSurface` with the same `surfaceId` is an
 
 - Components are a flat list joined by id references. The component with
   `"id": "root"` is the surface's entry point.
-- Containers use `children`: an array of ids. `Card`, `Button`, `Modal` and the
-  tab entries use `child`: one id.
+- Containers use `children`: an array of ids. `Card` and `Button` use `child`:
+  one id. `Modal` uses `trigger` and `content`, each one id. A `Tabs` entry
+  uses `title` and `child`.
 - For a list from data, template it: `"children": {"componentId": "row", "path": "/items"}`.
   Inside the template, relative `@path` values resolve against the item, and
   `{"@call": "@index"}` gives the position.

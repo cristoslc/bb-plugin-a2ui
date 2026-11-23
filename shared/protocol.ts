@@ -671,6 +671,23 @@ function formatDate(date: Date, pattern: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// URLs. The renderer loads media only from http and https, and `openUrl`
+// accepts nothing else. Both bundles and the validator call this one helper so
+// they cannot disagree about what is allowed.
+
+/** The normalized URL when it is http or https, otherwise null. */
+export function safeMediaUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Validation rules and actions.
 
 export function evaluateChecks(component: A2uiComponent, ctx: EvalContext): string[] {

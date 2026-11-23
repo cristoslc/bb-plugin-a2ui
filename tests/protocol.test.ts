@@ -8,6 +8,7 @@ import {
   reduceStream,
   resolveAction,
   resolveDynamic,
+  safeMediaUrl,
   walkSurface,
   writePointer,
   type A2uiState,
@@ -178,6 +179,17 @@ describe("dynamic values", () => {
 
   it("refuses an unknown function", () => {
     expect(resolveDynamic({ "@call": "magic" }, ctx)).toMatchObject({ ok: false, error: 'Unsupported A2UI function "magic".' });
+  });
+});
+
+describe("URL policy", () => {
+  it("accepts only http and https, matching the renderer", () => {
+    expect(safeMediaUrl(" https://example.com/a.png ")).toBe("https://example.com/a.png");
+    expect(safeMediaUrl("http://example.com/a.png")).toBe("http://example.com/a.png");
+    expect(safeMediaUrl("javascript:alert(1)")).toBeNull();
+    expect(safeMediaUrl("file:///etc/passwd")).toBeNull();
+    expect(safeMediaUrl("/relative.png")).toBeNull();
+    expect(safeMediaUrl("")).toBeNull();
   });
 });
 

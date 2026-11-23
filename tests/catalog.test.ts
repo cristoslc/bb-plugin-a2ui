@@ -102,4 +102,60 @@ describe("catalog validation", () => {
     );
     expect(validateState(state).map((entry) => entry.code)).toContain("CATALOG_ID");
   });
+
+  it("rejects a non-http URL the renderer refuses (BAD_URL_SCHEME)", () => {
+    // Probe: this stream returned ok before the URL check existed.
+    const media = stream(
+      `"createSurface":{"surfaceId":"s","components":[{"id":"root","component":"Image","url":"javascript:alert(1)"}]}`,
+    );
+    expect(media.diagnostics).toEqual([]);
+    expect(validateState(media).map((entry) => entry.code)).toContain("BAD_URL_SCHEME");
+
+    const open = stream(
+      `"createSurface":{"surfaceId":"s","components":[{"id":"root","component":"Button","child":"label","action":{"functionCall":{"@call":"openUrl","args":{"url":"file:///etc/passwd"}}}},{"id":"label","component":"Text","text":"Open"}]}`,
+    );
+    expect(open.diagnostics).toEqual([]);
+    expect(validateState(open).map((entry) => entry.code)).toContain("BAD_URL_SCHEME");
+
+    // An empty poster is no poster, and the renderer draws it without an error.
+    const emptyPoster = stream(
+      `"createSurface":{"surfaceId":"s","components":[{"id":"root","component":"Video","url":"https://example.com/a.mp4","posterUrl":""}]}`,
+    );
+    expect(validateState(emptyPoster).map((entry) => entry.code)).not.toContain("BAD_URL_SCHEME");
+  });
+
+  it("rejects a blank tab entry the renderer refuses (BAD_TAB_ENTRY)", () => {
+    // Probe: this stream returned ok with only an orphan warning before the tab check existed.
+    const state = stream(
+      `"createSurface":{"surfaceId":"s","components":[{"id":"root","component":"Tabs","tabs":[{"title":"One"}]},{"id":"panel","component":"Text","text":"x"}]}`,
+    );
+    expect(state.diagnostics).toEqual([]);
+    const diagnostics = validateState(state);
+    expect(diagnostics.map((entry) => entry.code)).toContain("BAD_TAB_ENTRY");
+    expect(diagnostics.find((entry) => entry.code === "BAD_TAB_ENTRY")?.message).toContain('"child"');
+  });
+
+  it("rejects an action that sends nothing the renderer refuses (BAD_ACTION)", () => {
+    // Probe: this stream returned ok before the action check existed.
+    const state = stream(
+      `"createSurface":{"surfaceId":"s","components":[{"id":"root","component":"Button","child":"label","action":{}},{"id":"label","component":"Text","text":"Go"}]}`,
+    );
+    expect(state.diagnostics).toEqual([]);
+    expect(validateState(state).map((entry) => entry.code)).toContain("BAD_ACTION");
+  });
+
+  it("rejects a child shape the renderer refuses (BAD_CHILD_SHAPE)", () => {
+    // Probes: both streams returned ok with only an orphan warning before the shape check existed.
+    const childArray = stream(
+      `"createSurface":{"surfaceId":"s","components":[{"id":"root","component":"Card","child":["body"]},{"id":"body","component":"Text","text":"Hi"}]}`,
+    );
+    expect(childArray.diagnostics).toEqual([]);
+    expect(validateState(childArray).map((entry) => entry.code)).toContain("BAD_CHILD_SHAPE");
+
+    const childrenString = stream(
+      `"createSurface":{"surfaceId":"s","components":[{"id":"root","component":"Column","children":"body"},{"id":"body","component":"Text","text":"Hi"}]}`,
+    );
+    expect(childrenString.diagnostics).toEqual([]);
+    expect(validateState(childrenString).map((entry) => entry.code)).toContain("BAD_CHILD_SHAPE");
+  });
 });
