@@ -6,6 +6,13 @@
  * keyboard events, a button is clicked at its own box, and text is typed into
  * the focused field. No suite calls a component's internals.
  *
+ * Assertions: text, text_not, theme, diagnostic, button_blocked,
+ * composer_exact, composer_empty, slider_value, input_value, checked,
+ * selected, count, attr, popup_url.
+ *
+ * Actions: click, type, slider_to, toggle, select_option, tab, modal_open,
+ * modal_close, source_toggle, wait.
+ *
  * Usage:
  *   npm run uat
  *   npm run uat -- tests/manual/a2ui/uat-draw.yaml
@@ -144,6 +151,112 @@ async function runAction(page, action) {
     if (info === null) throw new Error(`type: no field labelled ${JSON.stringify(label)}`);
     await page.mouse.click(info.x, info.y);
     await page.keyboard.type(text);
+    await sleep(100);
+    return;
+  }
+  if (action.toggle !== undefined) {
+    const { label } = action.toggle;
+    const info = await page.evaluate((wanted) => {
+      const box = [...document.querySelectorAll('[role="checkbox"]')].find((candidate) =>
+        window.__uatText(candidate.closest("label")).startsWith(wanted),
+      );
+      if (box === undefined) return null;
+      return window.__uatHitPoint(box);
+    }, label);
+    if (info === null) throw new Error(`toggle: no checkbox labelled ${JSON.stringify(label)}`);
+    await page.mouse.click(info.x, info.y);
+    await sleep(100);
+    return;
+  }
+  if (action.select_option !== undefined) {
+    const { label, option } = action.select_option;
+    const info = await page.evaluate(
+      ({ wanted, wantedOption }) => {
+        const fieldset = [...document.querySelectorAll("fieldset")].find((candidate) =>
+          window.__uatText(candidate.querySelector("legend")).startsWith(wanted),
+        );
+        if (fieldset === undefined) return { missing: "fieldset" };
+        const target = [...fieldset.querySelectorAll('button[aria-pressed], [role="checkbox"]')].find(
+          (candidate) => {
+            const text =
+              candidate.getAttribute("aria-label") ??
+              window.__uatText(candidate.closest("label") ?? candidate);
+            return text.trim() === wantedOption;
+          },
+        );
+        if (target === undefined) return { missing: "option" };
+        return window.__uatHitPoint(target);
+      },
+      { wanted: label, wantedOption: option },
+    );
+    if (info === null || info.missing !== undefined) {
+      throw new Error(
+        `select_option: ${info?.missing === "fieldset" ? `no fieldset labelled ${JSON.stringify(label)}` : `no option ${JSON.stringify(option)} in ${JSON.stringify(label)}`}`,
+      );
+    }
+    await page.mouse.click(info.x, info.y);
+    await sleep(100);
+    return;
+  }
+  if (action.tab !== undefined) {
+    const { title } = action.tab;
+    const info = await page.evaluate((wanted) => {
+      const tab = [...document.querySelectorAll('button[role="tab"]')].find(
+        (candidate) => window.__uatText(candidate) === wanted,
+      );
+      if (tab === undefined) return null;
+      return window.__uatHitPoint(tab);
+    }, title);
+    if (info === null) throw new Error(`tab: no tab titled ${JSON.stringify(title)}`);
+    await page.mouse.click(info.x, info.y);
+    await sleep(100);
+    return;
+  }
+  if (action.modal_open !== undefined) {
+    const { trigger } = action.modal_open;
+    const info = await page.evaluate((wanted) => {
+      // The trigger text also lives on every wrapper above it. The smallest
+      // box carrying that exact text is the innermost node, and a click there
+      // bubbles through the trigger's own click handler.
+      const boxes = [...document.querySelectorAll("[data-uat-fence] *")]
+        .filter((candidate) => window.__uatText(candidate) === wanted)
+        .map((candidate) => ({ candidate, rect: candidate.getBoundingClientRect() }))
+        .filter(({ rect }) => rect.width > 0 && rect.height > 0)
+        .sort(
+          (left, right) =>
+            left.rect.width * left.rect.height - right.rect.width * right.rect.height,
+        );
+      const innermost = boxes[0];
+      if (innermost === undefined) return null;
+      return window.__uatHitPoint(innermost.candidate);
+    }, trigger);
+    if (info === null) throw new Error(`modal_open: no trigger text ${JSON.stringify(trigger)}`);
+    await page.mouse.click(info.x, info.y);
+    await sleep(100);
+    return;
+  }
+  if (action.modal_close !== undefined) {
+    const info = await page.evaluate(() => {
+      const close = document.querySelector('button[aria-label="Close"]');
+      if (!(close instanceof Element)) return null;
+      return window.__uatHitPoint(close);
+    });
+    if (info === null) throw new Error("modal_close: no button with aria-label Close");
+    await page.mouse.click(info.x, info.y);
+    await sleep(100);
+    return;
+  }
+  if (action.source_toggle !== undefined) {
+    const info = await page.evaluate(() => {
+      const button = [...document.querySelectorAll("button")].find((candidate) => {
+        const text = window.__uatText(candidate);
+        return text === "Source" || text === "Hide source";
+      });
+      if (button === undefined) return null;
+      return window.__uatHitPoint(button);
+    });
+    if (info === null) throw new Error('source_toggle: no button labelled Source or Hide source');
+    await page.mouse.click(info.x, info.y);
     await sleep(100);
     return;
   }
@@ -298,6 +411,140 @@ async function runAssertion(page, assertion) {
           : `slider ${JSON.stringify(value.label)} value=${info.value}, shown=${JSON.stringify(info.shown)}`,
     };
   }
+  if (key === "input_value") {
+    const info = await page.evaluate((wanted) => {
+      const field = [...document.querySelectorAll("input, textarea")].find((candidate) => {
+        if (candidate instanceof HTMLInputElement && candidate.type === "range") return false;
+        return (candidate.closest("label")?.innerText ?? "").trim().startsWith(wanted);
+      });
+      if (field === undefined) return null;
+      return {
+        type: field instanceof HTMLInputElement ? field.type : "textarea",
+        value: field.value,
+      };
+    }, value.label);
+    const ok = info !== null && info.value === String(value.value);
+    return {
+      ok,
+      detail:
+        info === null
+          ? `no native input labelled ${JSON.stringify(value.label)}`
+          : `input ${JSON.stringify(value.label)} (${info.type}) value=${JSON.stringify(info.value)}, expected ${JSON.stringify(String(value.value))}`,
+    };
+  }
+  if (key === "checked") {
+    const info = await page.evaluate((wanted) => {
+      const box = [...document.querySelectorAll('[role="checkbox"]')].find((candidate) =>
+        window.__uatText(candidate.closest("label")).startsWith(wanted),
+      );
+      if (box === undefined) return null;
+      return {
+        state: box.getAttribute("data-state") ?? box.getAttribute("aria-checked"),
+      };
+    }, value.label);
+    const on = info !== null && (info.state === "checked" || info.state === "true");
+    return {
+      ok: info !== null && on === (value.value === true),
+      detail:
+        info === null
+          ? `no checkbox labelled ${JSON.stringify(value.label)}`
+          : `checkbox ${JSON.stringify(value.label)} state=${JSON.stringify(info.state)}`,
+    };
+  }
+  if (key === "selected") {
+    const info = await page.evaluate(
+      ({ wanted, wantedOption }) => {
+        let scope = document.querySelector("[data-uat-fence]");
+        if (wanted !== undefined) {
+          const fieldset = [...document.querySelectorAll("fieldset")].find((candidate) =>
+            window.__uatText(candidate.querySelector("legend")).startsWith(wanted),
+          );
+          if (fieldset === undefined) return { missing: "fieldset" };
+          scope = fieldset;
+        }
+        if (scope === null) return { missing: "surface" };
+        const candidates = [...scope.querySelectorAll('button[aria-pressed], [role="checkbox"]')];
+        const target = candidates.find((candidate) => {
+          const text =
+            candidate.getAttribute("aria-label") ??
+            window.__uatText(candidate.closest("label") ?? candidate);
+          return text.trim() === wantedOption;
+        });
+        if (target === undefined) {
+          return {
+            missing: "option",
+            seen: candidates.map((candidate) =>
+              (
+                candidate.getAttribute("aria-label") ??
+                window.__uatText(candidate.closest("label") ?? candidate)
+              ).trim(),
+            ),
+          };
+        }
+        const pressed = target.getAttribute("aria-pressed");
+        // A chip reports aria-pressed; a Radix checkbox reports data-state.
+        const on = pressed !== null ? pressed === "true" : target.getAttribute("data-state") === "checked";
+        return { on };
+      },
+      { wanted: value.label, wantedOption: value.option },
+    );
+    if (info.missing !== undefined) {
+      const reason =
+        info.missing === "fieldset"
+          ? `no fieldset labelled ${JSON.stringify(value.label)}`
+          : info.missing === "surface"
+            ? "no A2UI surface is mounted"
+            : `no option ${JSON.stringify(value.option)} (saw ${compact(info.seen ?? [])})`;
+      return { ok: false, detail: reason };
+    }
+    return {
+      ok: info.on === (value.value === true),
+      detail: `option ${JSON.stringify(value.option)} ${info.on ? "selected" : "not selected"}`,
+    };
+  }
+  if (key === "count") {
+    const actual = await page.evaluate(
+      (selector) => document.querySelectorAll(selector).length,
+      value.selector,
+    );
+    return {
+      ok: actual === Number(value.equals),
+      detail: `${actual} element(s) match ${JSON.stringify(value.selector)}, expected ${value.equals}`,
+    };
+  }
+  if (key === "attr") {
+    const info = await page.evaluate(
+      ({ selector, name }) => {
+        const matches = [...document.querySelectorAll(selector)];
+        return {
+          count: matches.length,
+          value: matches[0]?.getAttribute(name) ?? null,
+        };
+      },
+      { selector: value.selector, name: value.name },
+    );
+    const ok = info.count === 1 && info.value === String(value.equals);
+    return {
+      ok,
+      detail:
+        info.count === 0
+          ? `no element matches ${JSON.stringify(value.selector)}`
+          : info.count > 1
+            ? `${info.count} elements match ${JSON.stringify(value.selector)}, expected exactly one`
+            : `attr ${value.name}=${JSON.stringify(info.value)} on ${JSON.stringify(value.selector)}, expected ${JSON.stringify(String(value.equals))}`,
+    };
+  }
+  if (key === "popup_url") {
+    const urls = await page.evaluate(() => window.__uatPopups ?? []);
+    const last = urls.at(-1);
+    return {
+      ok: urls.length > 0 && last === value.equals,
+      detail:
+        urls.length === 0
+          ? "window.open was never called"
+          : `window.open received ${compact(urls)}, last ${JSON.stringify(last)}`,
+    };
+  }
   throw new Error(`unknown assertion ${compact(assertion)}`);
 }
 
@@ -313,6 +560,36 @@ async function runSuite(file, browser) {
   const { child, base } = await startHarness(port);
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
+  // Capture the URL handed to window.open before the app loads, so an openUrl
+  // button is checked without opening a tab or reaching the network. Also
+  // install two DOM helpers the verbs share: visible label text (an icon
+  // contributes no words) and a hit-tested point inside a control's box, so a
+  // clipped or partly covered control is clicked where it is actually painted.
+  await page.evaluateOnNewDocument(() => {
+    window.__uatPopups = [];
+    window.open = (url) => {
+      window.__uatPopups.push(url === undefined || url === null ? "" : String(url));
+      return null;
+    };
+    window.__uatText = (element) => {
+      if (element === null || element === undefined) return "";
+      const clone = element.cloneNode(true);
+      clone.querySelectorAll('[aria-hidden="true"], svg').forEach((node) => node.remove());
+      return (clone.textContent ?? "").replace(/\s+/g, " ").trim();
+    };
+    window.__uatHitPoint = (element) => {
+      const rect = element.getBoundingClientRect();
+      for (const fy of [0.5, 0.35, 0.65, 0.2, 0.8, 0.05]) {
+        for (const fx of [0.5, 0.25, 0.75, 0.1, 0.9]) {
+          const x = rect.left + rect.width * fx;
+          const y = rect.top + rect.height * fy;
+          const hit = document.elementFromPoint(x, y);
+          if (hit !== null && (hit === element || element.contains(hit))) return { x, y };
+        }
+      }
+      return null;
+    };
+  });
   const externalRequests = [];
   await page.setRequestInterception(true);
   page.on("request", (request) => {
