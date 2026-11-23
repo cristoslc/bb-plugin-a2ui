@@ -1,0 +1,41 @@
+# Operator-assisted E2E: two buttons in one surface each send their own event
+# message, and the composer holds both in click order with a blank line
+# between them.
+#
+# Both clicks are real mouse clicks at each button's own box.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-two-actions.yaml
+suite: a2ui-two-actions
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"review","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"review","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","actions"]},{"id":"title","component":"Text","text":"Review the request"},{"id":"actions","component":"Row","children":["approveLabel","approve","rejectLabel","reject"]},{"id":"approveLabel","component":"Text","text":"Approve"},{"id":"approve","component":"Button","variant":"primary","child":"approveLabel","action":{"event":{"name":"decide","context":{"decision":"approve"}}}},{"id":"rejectLabel","component":"Text","text":"Reject"},{"id":"reject","component":"Button","child":"rejectLabel","action":{"event":{"name":"decide","context":{"decision":"reject"}}}}]}}
+
+steps:
+  - id: each-button-appends-its-own-message-in-order
+    title: Approve then Reject leaves both exact messages in the composer, in that order
+    goto: "?status=closed"
+    actions:
+      - click: { text: "Approve" }
+      - click: { text: "Reject" }
+    assert:
+      - text: "Review the request"
+      - composer_exact: |-
+          [a2ui action] decide (surface review)
+
+          context:
+          ```json
+          {
+            "decision": "approve"
+          }
+          ```
+
+          [a2ui action] decide (surface review)
+
+          context:
+          ```json
+          {
+            "decision": "reject"
+          }
+          ```

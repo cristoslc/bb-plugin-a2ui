@@ -1,0 +1,26 @@
+# Operator-assisted E2E: an empty string, a missing path and a null value all
+# render as empty Text, and neither "undefined" nor "null" reaches the page.
+#
+# The surface keeps a title and a footer so the empty Texts are measured
+# alongside text that does draw.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-empty-values.yaml
+suite: a2ui-empty-values
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"blanks","dataModel":{"blank":"","gone":null}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"blanks","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","blank","missing","gone","literal","footer"]},{"id":"title","component":"Text","text":"Empty values render as empty text"},{"id":"blank","component":"Text","text":{"@path":"/blank"}},{"id":"missing","component":"Text","text":{"@path":"/missing"}},{"id":"gone","component":"Text","text":{"@path":"/gone"}},{"id":"literal","component":"Text","text":""},{"id":"footer","component":"Text","text":"Three values stayed empty."}]}}
+
+steps:
+  - id: empty-sources-draw-nothing
+    title: An empty string, a missing path and a null value draw empty Text with no undefined or null
+    goto: "?status=closed"
+    assert:
+      - text: "Empty values render as empty text"
+      - text: "Three values stayed empty."
+      - count: { selector: '[data-uat-markdown]:empty', equals: 4 }
+      - count: { selector: '[data-uat-markdown]', equals: 6 }
+      - text_not: "undefined"
+      - text_not: "null"
+      - text: "1 surface"

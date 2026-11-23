@@ -1,0 +1,28 @@
+# Operator-assisted E2E: one reply carries two surfaces, and one of them is
+# broken by a duplicate createSurface. The error is shown, and the valid
+# surface still draws next to the one that survived.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-broken-and-healthy.yaml
+suite: a2ui-broken-and-healthy
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"alpha"}}
+  {"version":"1.0","updateComponents":{"surfaceId":"alpha","components":[{"id":"root","component":"Text","text":"Alpha ledger ready"}]}}
+  {"version":"1.0","createSurface":{"surfaceId":"alpha"}}
+  {"version":"1.0","createSurface":{"surfaceId":"beta"}}
+  {"version":"1.0","updateComponents":{"surfaceId":"beta","components":[{"id":"root","component":"Text","text":"Beta ledger ready"}]}}
+
+steps:
+  - id: broken-surface-does-not-stop-the-healthy-one
+    title: The duplicate surface reports INTEGRITY_ERROR and the valid surface still draws
+    goto: "?status=closed"
+    assert:
+      - text: "Alpha ledger ready"
+      - text: "Beta ledger ready"
+      - text: "2 surfaces"
+      - text: "INTEGRITY_ERROR"
+      - diagnostic:
+          code: INTEGRITY_ERROR
+          message_contains: 'Surface "alpha" already exists'
+      - text_not: "no surface"
