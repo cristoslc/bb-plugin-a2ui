@@ -87,4 +87,4 @@ Three catalog validation promises are proved in `tests/catalog.test.ts` rather t
 
 ## Total
 
-68 suites. They script 113 steps, and each report adds one network check row, for 180 report rows in all.
+68 suites. They script 113 steps, and each report adds one network check row, for 181 report rows in all.
