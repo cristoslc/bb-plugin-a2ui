@@ -1,0 +1,45 @@
+# Operator-assisted E2E: focus and the caret survive a live update.
+#
+# The reader clicks into a field and types the start of a name. A second reply
+# updates an unrelated Text, and the field must still hold focus with the typed
+# start in place. The rest of the name is then typed with no click, so the only
+# way the whole string arrives is if focus survived the update and the caret sat
+# after what was already typed.
+#
+# The push is the whole fence body the renderer receives, so it carries its own
+# createSurface with the same surface and component ids. That rebuilds the
+# protocol state while the mounted field keeps its focus and its local edit.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-focus-survives-update.yaml
+suite: a2ui-focus-survives-update
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","note","name","greeting"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"note","component":"Text","text":"Old note from the agent."},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}},{"id":"greeting","component":"Text","text":{"@call":"formatString","args":{"value":"Hello ${/name}"}}}]}}
+
+steps:
+  - id: focus-and-caret-survive-a-live-update
+    title: A field keeps focus across a pushed update, then typing the rest completes the string in the field and its bound Text
+    goto: "?status=closed"
+    actions:
+      - type: { label: Display name, text: "Gr" }
+      - assert:
+          focused: { label: Display name }
+      - assert:
+          input_value: { label: Display name, value: "Gr" }
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":""},"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","note","name","greeting"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"note","component":"Text","text":"Old note from the agent."},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}},{"id":"greeting","component":"Text","text":{"@call":"formatString","args":{"value":"Hello ${/name}"}}}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"note","component":"Text","text":"New note from the agent."}]}}
+      - assert:
+          focused: { label: Display name }
+      - assert:
+          input_value: { label: Display name, value: "Gr" }
+      - type_focused: { text: "ace" }
+    assert:
+      - input_value: { label: Display name, value: "Grace" }
+      - text: "Hello Grace"
+      - text: "New note from the agent."
+      - no_page_errors: true

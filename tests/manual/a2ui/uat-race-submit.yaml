@@ -1,0 +1,42 @@
+# Operator-assisted E2E: a click that lands right after typing still carries the
+# typed value.
+#
+# The reader types a name and clicks Send with no wait between the two, so the
+# click arrives while the renderer is still settling the last keystroke. The
+# composer is asserted exactly, so the action's context and the whole data model
+# must both hold the typed name. A renderer that read the model before the last
+# write would send an empty name and fail here.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-race-submit.yaml
+suite: a2ui-race-submit
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"race","sendDataModel":true,"dataModel":{"name":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"race","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","send"]},{"id":"title","component":"Text","text":"Reserve a place"},{"id":"name","component":"TextField","label":"Full name","value":{"@path":"/name"}},{"id":"sendLabel","component":"Text","text":"Send request"},{"id":"send","component":"Button","variant":"primary","child":"sendLabel","action":{"event":{"name":"sendRequest","context":{"name":{"@path":"/name"}}}}}]}}
+
+steps:
+  - id: click-right-after-typing-carries-the-value
+    title: A click with no pause after typing sends the typed value in the context and the data model
+    goto: "?status=closed"
+    actions:
+      - type: { label: Full name, text: "Amelia Chen" }
+      - click: { text: "Send request" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] sendRequest (surface race)
+
+          context:
+          ```json
+          {
+            "name": "Amelia Chen"
+          }
+          ```
+
+          data model:
+          ```json
+          {
+            "name": "Amelia Chen"
+          }
+          ```
+      - no_page_errors: true

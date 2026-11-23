@@ -9,7 +9,12 @@
  * Assertions: text, text_not, theme, diagnostic, button_blocked,
  * composer_exact, composer_empty, slider_value, input_value, checked,
  * selected, count, attr, style, popup_url, popup_count, visible, hit_test,
- * no_page_errors.
+ * focused, no_page_errors.
+ *
+ * `focused` takes `{ label }` and passes only when document.activeElement is
+ * the text field whose visible label starts with that text. It fails with a
+ * description of whatever does hold focus, so a run that loses focus names the
+ * element that took it.
  *
  * `no_page_errors` takes `true` and passes only when nothing threw. The runner
  * records every `pageerror` and every console error for the whole suite, so the
@@ -557,7 +562,17 @@ async function runAction(page, action, state) {
 }
 
 async function runAssertion(page, assertion, state) {
-  const [key] = Object.keys(assertion);
+  if (assertion === null || typeof assertion !== "object" || Array.isArray(assertion)) {
+    throw new Error(`an assertion needs a mapping with one key, got ${compact(assertion)}`);
+  }
+  const keys = Object.keys(assertion);
+  // One key per entry, because the dispatcher below reads only the first key.
+  if (keys.length !== 1) {
+    throw new Error(
+      `an assertion takes exactly one key, got ${compact(keys)}: put each check in its own entry`,
+    );
+  }
+  const [key] = keys;
   const value = assertion[key];
   if (key === "no_page_errors") {
     if (value !== true) {
@@ -866,6 +881,31 @@ async function runAssertion(page, assertion, state) {
           : info.count > 1
             ? `${info.count} elements match ${JSON.stringify(value.selector)}, expected exactly one`
             : `style ${value.property}=${JSON.stringify(info.value)} on ${JSON.stringify(value.selector)}, expected ${JSON.stringify(String(value.equals))}`,
+    };
+  }
+  if (key === "focused") {
+    const wanted = value.label;
+    if (typeof wanted !== "string" || wanted === "") {
+      throw new Error(`focused: label must be a non-empty string, got ${compact(wanted)}`);
+    }
+    const info = await page.evaluate((label) => {
+      const field = [...document.querySelectorAll("input, textarea")].find((candidate) => {
+        if (candidate instanceof HTMLInputElement && candidate.type === "range") return false;
+        return (candidate.closest("label")?.innerText ?? "").trim().startsWith(label);
+      });
+      return {
+        found: field !== undefined,
+        focused: field !== undefined && document.activeElement === field,
+      };
+    }, wanted);
+    const active = await focusedName(page);
+    return {
+      ok: info.found && info.focused,
+      detail: !info.found
+        ? `no field labelled ${JSON.stringify(wanted)}, focus is on ${active}`
+        : info.focused
+          ? `focus is in the field labelled ${JSON.stringify(wanted)}`
+          : `focus is on ${active}, expected the field labelled ${JSON.stringify(wanted)}`,
     };
   }
   if (key === "popup_url") {

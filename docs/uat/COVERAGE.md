@@ -33,6 +33,7 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-dynamic-bad-url.yaml` | An Image URL bound from the data model to a javascript: value is refused at draw time, with no image element. | 2 |
 | `tests/manual/a2ui/uat-empty-list.yaml` | A list template over an empty array draws zero rows and never shows the waiting text. | 2 |
 | `tests/manual/a2ui/uat-empty-values.yaml` | Empty strings, a missing path, null and literal empty values render as empty text, never undefined or null. | 2 |
+| `tests/manual/a2ui/uat-focus-survives-update.yaml` | A field keeps focus across a pushed update, the caret stays after the typed text, and typing the rest completes the value in the field and its bound Text. | 2 |
 | `tests/manual/a2ui/uat-fuzz-surface.yaml` | Forty seeded rounds touch four buttons, two checkboxes, two sliders and two text fields; nothing throws, and the card still draws one surface with its title. | 1 |
 | `tests/manual/a2ui/uat-icon.yaml` | A mapped icon name draws the icon, an unmapped name stays visible as text, and an inline svgPath draws an svg with a path. | 4 |
 | `tests/manual/a2ui/uat-image.yaml` | An https Image draws a real img element with the stream's URL, the description as alt, and the catalog fit as computed object-fit. | 2 |
@@ -57,6 +58,7 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-proto-streaming.yaml` | A reply that is still streaming draws its complete lines, keeps the half-written tail quiet, and shows one surface. | 3 |
 | `tests/manual/a2ui/uat-proto-surfaces.yaml` | One reply can carry more than one surface, and the header counts them. | 2 |
 | `tests/manual/a2ui/uat-proto-whole-json.yaml` | A fence body holding one pretty-printed JSON object, rather than JSON Lines, still draws its surface. | 2 |
+| `tests/manual/a2ui/uat-race-submit.yaml` | A click that lands with no pause after typing sends the typed value in the action context and the data model, with no page errors. | 2 |
 | `tests/manual/a2ui/uat-real-booking.yaml` | A booking form fails its checks, is corrected, and submits with the exact action message. | 3 |
 | `tests/manual/a2ui/uat-roundtrip-form.yaml` | A filled form sends its exact action message, and a pushed reply changes the heading, writes a data path, and leaves the typed values in place on one card. | 2 |
 | `tests/manual/a2ui/uat-runner-verbs.yaml` | Every assertion and action verb the runner advertises is driven against the real renderer at least once. | 8 |
@@ -84,4 +86,4 @@ Three catalog validation promises are proved in `tests/catalog.test.ts` rather t
 
 ## Total
 
-65 suites. They script 109 steps, and each report adds one network check row, for 174 report rows in all.
+67 suites. They script 111 steps, and each report adds one network check row, for 178 report rows in all.
