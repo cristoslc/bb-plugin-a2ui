@@ -1,0 +1,111 @@
+# Operator-assisted E2E: every assertion and action verb the runner advertises
+# is driven against the real renderer at least once.
+#
+# Inputs take real keystrokes, a Radix checkbox and the ChoicePicker controls
+# are clicked at their own boxes, a tab, a modal and the source toggle are
+# clicked by their visible text, and window.open is captured by an init script
+# installed before the app loads.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-runner-verbs.yaml
+suite: a2ui-runner-verbs
+defaults:
+  theme: dark
+
+steps:
+  - id: inputs-take-real-typing
+    title: Text, number, date and checkbox fields report the value a real interaction left
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"booking","sendDataModel":true,"dataModel":{"name":"","guests":"","arrival":"2026-12-24","window":false}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"booking","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","guests","arrival","window"]},{"id":"title","component":"Text","text":"Reserve a table"},{"id":"name","component":"TextField","label":"Full name","placeholder":"Ada Lovelace","value":{"@path":"/name"}},{"id":"guests","component":"TextField","label":"Guests","variant":"number","value":{"@path":"/guests"}},{"id":"arrival","component":"DateTimeInput","label":"Arrival date","value":{"@path":"/arrival"}},{"id":"window","component":"CheckBox","label":"Window seat","value":{"@path":"/window"}}]}}
+    actions:
+      - type: { label: Full name, text: "Amelia Chen" }
+      - type: { label: Guests, text: "4" }
+      - toggle: { label: Window seat }
+    assert:
+      - input_value: { label: Full name, value: "Amelia Chen" }
+      - input_value: { label: Guests, value: 4 }
+      - input_value: { label: Arrival date, value: "2026-12-24" }
+      - checked: { label: Window seat, value: true }
+
+  - id: pickers-report-their-selection
+    title: A single picker and a chip picker report the option that was clicked
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"cabin","sendDataModel":true,"dataModel":{"cabin":["economy"],"extras":[]}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"cabin","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","cabinPicker","extrasPicker"]},{"id":"title","component":"Text","text":"Choose a cabin"},{"id":"cabinPicker","component":"ChoicePicker","label":"Cabin","value":{"@path":"/cabin"},"options":[{"value":"economy","label":"Economy"},{"value":"business","label":"Business"}]},{"id":"extrasPicker","component":"ChoicePicker","label":"Extras","variant":"multipleSelection","displayStyle":"chips","value":{"@path":"/extras"},"options":[{"value":"breakfast","label":"Breakfast"},{"value":"parking","label":"Parking"}]}]}}
+    actions:
+      - select_option: { label: Cabin, option: Business }
+      - select_option: { label: Extras, option: Breakfast }
+    assert:
+      - selected: { label: Cabin, option: Business, value: true }
+      - selected: { label: Cabin, option: Economy, value: false }
+      - selected: { option: Breakfast, value: true }
+
+  - id: tabs-switch-panels
+    title: Clicking a tab swaps the panel and moves the selected state
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"tabs","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"tabs","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","panels"]},{"id":"title","component":"Text","text":"Trip options"},{"id":"panels","component":"Tabs","tabs":[{"title":"Overview","child":"overview"},{"title":"Details","child":"details"}]},{"id":"overview","component":"Text","text":"The overview panel"},{"id":"details","component":"Text","text":"The details panel"}]}}
+    actions:
+      - tab: { title: Details }
+    assert:
+      - text: "The details panel"
+      - text_not: "The overview panel"
+      - attr: { selector: 'button[role="tab"]:nth-child(2)', name: aria-selected, equals: "true" }
+      - attr: { selector: 'button[role="tab"]:nth-child(1)', name: aria-selected, equals: "false" }
+
+  - id: modal-opens
+    title: A modal trigger opens the panel and the close button is present
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24."}]}}
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+    assert:
+      - text: "Reservation summary"
+      - text: "Two guests on Dec 24."
+      - count: { selector: 'button[aria-label="Close"]', equals: 1 }
+
+  - id: modal-closes
+    title: The close button removes the modal content
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"modal","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"modal","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","summary"]},{"id":"title","component":"Text","text":"Reservation"},{"id":"summary","component":"Modal","trigger":"showSummary","content":"summaryBody"},{"id":"showSummary","component":"Text","text":"Show the summary"},{"id":"summaryBody","component":"Column","children":["summaryTitle","summaryText"]},{"id":"summaryTitle","component":"Text","text":"Reservation summary"},{"id":"summaryText","component":"Text","text":"Two guests on Dec 24."}]}}
+    actions:
+      - modal_open: { trigger: "Show the summary" }
+      - modal_close: {}
+    assert:
+      - count: { selector: 'button[aria-label="Close"]', equals: 0 }
+      - text_not: "Reservation summary"
+
+  - id: popup-and-source
+    title: An openUrl button hands its URL to window.open and the source toggle flips
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"link","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"link","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","guide"]},{"id":"title","component":"Text","text":"Field guide"},{"id":"guideLabel","component":"Text","text":"Open the guide"},{"id":"guide","component":"Button","variant":"primary","child":"guideLabel","action":{"functionCall":{"@call":"openUrl","args":{"url":"https://example.com/a2ui-guide"}}}}]}}
+    actions:
+      - click: { text: "Open the guide" }
+      - source_toggle: {}
+    assert:
+      - popup_url: { equals: "https://example.com/a2ui-guide" }
+      - text: "Hide source"
+      - text: '"createSurface"'
+
+  - id: source-toggle-restores-the-surface
+    title: A second source toggle hides the source and brings the surface back
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"link","sendDataModel":false}}
+      {"version":"1.0","updateComponents":{"surfaceId":"link","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","guide"]},{"id":"title","component":"Text","text":"Field guide"},{"id":"guideLabel","component":"Text","text":"Open the guide"},{"id":"guide","component":"Button","variant":"primary","child":"guideLabel","action":{"functionCall":{"@call":"openUrl","args":{"url":"https://example.com/a2ui-guide"}}}}]}}
+    actions:
+      - source_toggle: {}
+      - source_toggle: {}
+    assert:
+      - text_not: "Hide source"
+      - text_not: '"createSurface"'
+      - text: "Field guide"
