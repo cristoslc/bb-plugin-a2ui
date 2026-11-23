@@ -21,6 +21,7 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-binding-relative.yaml` | Relative paths inside a list template resolve against the current item, including a field in a nested object. | 2 |
 | `tests/manual/a2ui/uat-binding-shared.yaml` | Two fields bound to the same path stay in step, and a Text bound to that path follows the value. | 3 |
 | `tests/manual/a2ui/uat-binding.yaml` | Inputs write the data model and actions reach the composer with the exact formatted text. | 3 |
+| `tests/manual/a2ui/uat-broken-and-healthy.yaml` | One reply with a broken duplicate surface and a valid surface shows the error and still draws the valid one. | 2 |
 | `tests/manual/a2ui/uat-card-divider.yaml` | A Card draws a border on all four sides, and a Divider with role separator is a one pixel line whose height or width names its axis. | 4 |
 | `tests/manual/a2ui/uat-checkbox.yaml` | A CheckBox toggles through real clicks, its bound boolean follows in the data model, and an action carries it into the exact composer text. | 4 |
 | `tests/manual/a2ui/uat-choice-multiple.yaml` | A multipleSelection ChoicePicker holds more than one value, writes both into the bound list, and removing one leaves the other. | 3 |
@@ -29,10 +30,15 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-diagnostics-truncation.yaml` | More than six diagnostics show the first six rows and one muted "and 2 more" line. | 2 |
 | `tests/manual/a2ui/uat-diagnostics.yaml` | Broken streams fail visibly, and a failing check keeps its button blocked. | 3 |
 | `tests/manual/a2ui/uat-draw.yaml` | A static A2UI surface draws in both themes. | 3 |
+| `tests/manual/a2ui/uat-dynamic-bad-url.yaml` | An Image URL bound from the data model to a javascript: value is refused at draw time, with no image element. | 2 |
+| `tests/manual/a2ui/uat-empty-list.yaml` | A list template over an empty array draws zero rows and never shows the waiting text. | 2 |
+| `tests/manual/a2ui/uat-empty-values.yaml` | Empty strings, a missing path, null and literal empty values render as empty text, never undefined or null. | 2 |
 | `tests/manual/a2ui/uat-icon.yaml` | A mapped icon name draws the icon, an unmapped name stays visible as text, and an inline svgPath draws an svg with a path. | 4 |
 | `tests/manual/a2ui/uat-image.yaml` | An https Image draws a real img element with the stream's URL, the description as alt, and the catalog fit as computed object-fit. | 2 |
 | `tests/manual/a2ui/uat-layout.yaml` | Row and Column compute their flex direction, keep their children in order, and their justify and align values reach computed style. | 3 |
 | `tests/manual/a2ui/uat-list.yaml` | A vertical List computes column, a horizontal List computes row, and both paint their children in stream order. | 3 |
+| `tests/manual/a2ui/uat-long-list.yaml` | A 50-item list draws all 50 children in order with both endpoints visible. | 2 |
+| `tests/manual/a2ui/uat-long-text-phone.yaml` | A long paragraph at 390x844 wraps inside the viewport and stays fully visible. | 2 |
 | `tests/manual/a2ui/uat-modal.yaml` | The Modal panel is fully visible whatever the trigger measures, at desktop and phone width. | 6 |
 | `tests/manual/a2ui/uat-phone-width.yaml` | At a 390x844 viewport the card and every input stay fully inside the screen. | 2 |
 | `tests/manual/a2ui/uat-proto-checks-basic.yaml` | The five single-value checks each fail on bad input, show their own message, and keep the button blocked with nothing sent. | 3 |
@@ -48,14 +54,17 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-proto-streaming.yaml` | A reply that is still streaming draws its complete lines, keeps the half-written tail quiet, and shows one surface. | 3 |
 | `tests/manual/a2ui/uat-proto-surfaces.yaml` | One reply can carry more than one surface, and the header counts them. | 2 |
 | `tests/manual/a2ui/uat-proto-whole-json.yaml` | A fence body holding one pretty-printed JSON object, rather than JSON Lines, still draws its surface. | 2 |
+| `tests/manual/a2ui/uat-real-booking.yaml` | A booking form fails its checks, is corrected, and submits with the exact action message. | 3 |
 | `tests/manual/a2ui/uat-roundtrip-form.yaml` | A filled form sends its exact action message, and a pushed reply changes the heading, writes a data path, and leaves the typed values in place on one card. | 2 |
 | `tests/manual/a2ui/uat-runner-verbs.yaml` | Every assertion and action verb the runner advertises is driven against the real renderer at least once. | 8 |
 | `tests/manual/a2ui/uat-slider-attributes.yaml` | A Slider carries the catalog min, max and step to the native range input, and the bound value stays inside that range. | 4 |
 | `tests/manual/a2ui/uat-streaming-to-closed.yaml` | A streaming partial reply draws what arrived with no diagnostic, and a closed full reply replaces it with the complete surface and no diagnostic row. | 2 |
 | `tests/manual/a2ui/uat-tabs-content.yaml` | Tabs shows its first panel by default, and a real click on the second tab replaces it with that tab's own content. | 4 |
 | `tests/manual/a2ui/uat-textfield.yaml` | Every TextField variant draws the native control its name promises, a placeholder reaches the attribute, and typing writes the bound value. | 5 |
+| `tests/manual/a2ui/uat-two-actions.yaml` | Two buttons each send their own message, and the composer holds both in click order. | 2 |
 | `tests/manual/a2ui/uat-two-replies.yaml` | Two clicks across a pushed update, which renames and re-aims the second button, land both action messages in the composer in order. | 2 |
 | `tests/manual/a2ui/uat-typography.yaml` | A caption Text is visibly smaller than a body Text in the same row, measured from computed font size. | 2 |
+| `tests/manual/a2ui/uat-unicode.yaml` | Accented, emoji and CJK text render and reach the action context unchanged. | 2 |
 | `tests/manual/a2ui/uat-update-keeps-edits.yaml` | A pushed update to another component leaves the value the reader typed in its field. | 2 |
 | `tests/manual/a2ui/uat-update-keeps-modal.yaml` | A pushed update leaves an open Modal and its content on screen. | 2 |
 | `tests/manual/a2ui/uat-update-keeps-tab.yaml` | A pushed update leaves the second tab selected and its panel on screen. | 2 |
@@ -72,4 +81,4 @@ Three catalog validation promises are proved in `tests/catalog.test.ts` rather t
 
 ## Total
 
-53 suites. They script 94 steps, and each report adds one network check row, for 147 report rows in all.
+62 suites. They script 104 steps, and each report adds one network check row, for 166 report rows in all.
