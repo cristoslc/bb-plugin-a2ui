@@ -1,0 +1,22 @@
+# Operator-assisted E2E: a second createSurface for a live surface id is
+# refused with INTEGRITY_ERROR and the first surface keeps drawing.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-duplicate-surface.yaml
+suite: a2ui-proto-duplicate-surface
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"panel"}}
+    {"version":"1.0","updateComponents":{"surfaceId":"panel","components":[{"id":"root","component":"Text","text":"First draw"}]}}
+    {"version":"1.0","createSurface":{"surfaceId":"panel"}}
+
+steps:
+  - id: duplicate-surface-reports-integrity-error
+    title: Recreating a live surface shows INTEGRITY_ERROR and keeps the first one
+    goto: "?status=closed"
+    assert:
+      - text: "First draw"
+      - text: "1 surface"
+      - diagnostic:
+          code: INTEGRITY_ERROR
+          message_contains: 'Surface "panel" already exists'

@@ -1,0 +1,25 @@
+# Operator-assisted E2E: formatNumber, formatCurrency, formatDate and
+# pluralize each draw their formatted text.
+#
+# The date carries a midday time so the rendered day is the same in every
+# timezone the harness might run in.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-format-values.yaml
+suite: a2ui-proto-format-values
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"formats"}}
+    {"version":"1.0","updateComponents":{"surfaceId":"formats","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["number","currency","date","one","many"]},{"id":"number","component":"Text","text":{"@call":"formatNumber","args":{"value":1234.5,"decimals":1}}},{"id":"currency","component":"Text","text":{"@call":"formatCurrency","args":{"value":1234.5,"currency":"USD","decimals":2}}},{"id":"date","component":"Text","text":{"@call":"formatDate","args":{"value":"2026-11-23T12:00:00","format":"MMMM d, yyyy"}}},{"id":"one","component":"Text","text":{"@call":"pluralize","args":{"value":1,"one":"entry","other":"entries"}}},{"id":"many","component":"Text","text":{"@call":"pluralize","args":{"value":3,"one":"entry","other":"entries"}}}]}}
+
+steps:
+  - id: numeric-and-date-formatters-draw-their-text
+    title: The number, currency, date and plural formatters draw their expected text
+    goto: "?status=closed"
+    assert:
+      - text: "1,234.5"
+      - text: "$1,234.50"
+      - text: "November 23, 2026"
+      - text: "entry"
+      - text: "entries"
+      - text: "1 surface"

@@ -1,0 +1,21 @@
+# Operator-assisted E2E: updateDataModel rewrites the value a Text reads, and
+# the old text disappears.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-data.yaml
+suite: a2ui-proto-data
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"route","dataModel":{"city":"Lisbon"}}}
+    {"version":"1.0","updateComponents":{"surfaceId":"route","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["label","city"]},{"id":"label","component":"Text","variant":"caption","text":"Next stop"},{"id":"city","component":"Text","text":{"@path":"/city"}}]}}
+    {"version":"1.0","updateDataModel":{"surfaceId":"route","path":"/city","value":"Porto"}}
+
+steps:
+  - id: data-update-rewrites-the-bound-text
+    title: An updateDataModel message replaces the text bound to that path
+    goto: "?status=closed"
+    assert:
+      - text: "Next stop"
+      - text: "Porto"
+      - text_not: "Lisbon"
+      - text: "1 surface"

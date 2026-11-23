@@ -1,0 +1,20 @@
+# Operator-assisted E2E: deleteSurface removes the drawn surface, its text
+# leaves the page, and the header says no surface remains.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-delete.yaml
+suite: a2ui-proto-delete
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"listing"}}
+    {"version":"1.0","updateComponents":{"surfaceId":"listing","components":[{"id":"root","component":"Text","text":"Apartment for rent"}]}}
+    {"version":"1.0","deleteSurface":{"surfaceId":"listing"}}
+
+steps:
+  - id: delete-surface-clears-the-page
+    title: After deleteSurface the surface text is gone and no surface remains
+    goto: "?status=closed"
+    assert:
+      - text: "no surface"
+      - text_not: "Apartment for rent"
+      - text_not: "1 surface"

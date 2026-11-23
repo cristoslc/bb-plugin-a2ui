@@ -1,0 +1,35 @@
+# Operator-assisted E2E: a reply that is still streaming draws the complete
+# lines it already has, keeps the half-written tail quiet, and shows one
+# surface.
+#
+# The last line of the stream is cut off mid-message on purpose. While the
+# fence reports status=streaming the parser holds that line as pending, so it
+# must draw no diagnostic and must not hide the surface above it.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-streaming.yaml
+suite: a2ui-proto-streaming
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"draft"}}
+    {"version":"1.0","updateComponents":{"surfaceId":"draft","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","note"]},{"id":"title","component":"Text","text":"Draft plan"},{"id":"note","component":"Text","variant":"caption","text":"Three stops so far."}]}}
+    {"version":"1.0","updateComponents":{"surfaceId":"draft","components":[{"id":"stop","component":"Text","te
+
+steps:
+  - id: streaming-draws-what-arrived
+    title: A streaming reply draws its complete messages and one surface
+    goto: "?status=streaming"
+    assert:
+      - text: "Draft plan"
+      - text: "Three stops so far."
+      - text: "1 surface"
+      - text_not: "waiting for a surface"
+      - text_not: "MALFORMED_MESSAGE"
+
+  - id: streaming-tail-stays-pending
+    title: The same half-written tail reports no error while the fence streams
+    goto: "?status=streaming"
+    assert:
+      - text_not: "not valid JSON"
+      - text_not: "and 1 more"
+      - text: "1 surface"

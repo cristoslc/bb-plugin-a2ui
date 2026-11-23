@@ -1,0 +1,24 @@
+# Operator-assisted E2E: a template list draws one row per data item, resolves
+# relative paths against the item, and reads the position through @index.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-list.yaml
+suite: a2ui-proto-list
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"stock","dataModel":{"items":[{"name":"Mug","qty":4},{"name":"Lamp","qty":2},{"name":"Rug","qty":1}]}}}
+    {"version":"1.0","updateComponents":{"surfaceId":"stock","components":[{"id":"root","component":"Card","child":"list"},{"id":"list","component":"List","children":{"componentId":"row","path":"/items"}},{"id":"row","component":"Row","justify":"spaceBetween","children":["name","qty","rank"]},{"id":"name","component":"Text","text":{"@path":"name"}},{"id":"qty","component":"Text","text":{"@path":"qty"}},{"id":"rank","component":"Text","variant":"caption","text":{"@call":"formatString","args":{"value":"Row ${@index}"}}}]}}
+
+steps:
+  - id: list-draws-one-row-per-item
+    title: The List template draws three rows with per-item names and positions
+    goto: "?status=closed"
+    assert:
+      - text: "Mug"
+      - text: "Lamp"
+      - text: "Rug"
+      - text: "Row 0"
+      - text: "Row 1"
+      - text: "Row 2"
+      - text_not: "Waiting for /items"
+      - text: "1 surface"

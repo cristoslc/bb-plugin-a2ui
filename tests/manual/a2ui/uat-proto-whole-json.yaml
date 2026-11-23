@@ -1,0 +1,34 @@
+# Operator-assisted E2E: a fence body that holds one pretty-printed JSON
+# object, rather than JSON Lines, still draws its surface.
+#
+# Line-by-line framing cannot parse this body, so a passing step proves the
+# whole-value path in parseStream.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-whole-json.yaml
+suite: a2ui-proto-whole-json
+defaults:
+  theme: dark
+stream: |
+    {
+      "version": "1.0",
+      "createSurface": {
+        "surfaceId": "whole",
+        "dataModel": { "who": "the team" },
+        "components": [
+          { "id": "root", "component": "Card", "child": "body" },
+          { "id": "body", "component": "Column", "children": ["title", "note"] },
+          { "id": "title", "component": "Text", "text": "Whole JSON body" },
+          { "id": "note", "component": "Text", "text": { "@call": "formatString", "args": { "value": "Drawn for ${/who}." } } }
+        ]
+      }
+    }
+
+steps:
+  - id: whole-json-body-draws-the-surface
+    title: One JSON object across several lines still draws its surface
+    goto: "?status=closed"
+    assert:
+      - text: "Whole JSON body"
+      - text: "Drawn for the team."
+      - text: "1 surface"
+      - text_not: "MALFORMED_MESSAGE"

@@ -1,0 +1,25 @@
+# Operator-assisted E2E: the and, or and not checks gate the same button, each
+# showing its own message and sending nothing.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-checks-logic.yaml
+suite: a2ui-proto-checks-logic
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"access","sendDataModel":true,"dataModel":{"first":"","second":"","phone":"","email":"","blocked":true}}}
+    {"version":"1.0","updateComponents":{"surfaceId":"access","components":[{"id":"root","component":"Card","child":"form"},{"id":"form","component":"Column","children":["first","second","phone","email","blockedRow","go"]},{"id":"first","component":"TextField","label":"First name","value":{"@path":"/first"}},{"id":"second","component":"TextField","label":"Last name","value":{"@path":"/second"},"@checks":[{"condition":{"@call":"and","args":{"values":[{"@call":"required","args":{"value":{"@path":"/first"}}},{"@call":"required","args":{"value":{"@path":"/second"}}}]}},"message":"Both names are required."}]},{"id":"phone","component":"TextField","label":"Phone","value":{"@path":"/phone"},"@checks":[{"condition":{"@call":"or","args":{"values":[{"@call":"required","args":{"value":{"@path":"/phone"}}},{"@call":"required","args":{"value":{"@path":"/email"}}}]}},"message":"Give a phone or an email address."}]},{"id":"email","component":"TextField","label":"Email","value":{"@path":"/email"}},{"id":"blockedRow","component":"CheckBox","label":"Account is blocked","value":{"@path":"/blocked"},"@checks":[{"condition":{"@call":"not","args":{"value":{"@path":"/blocked"}}},"message":"Blocked accounts cannot continue."}]},{"id":"goLabel","component":"Text","text":"Continue"},{"id":"go","component":"Button","variant":"primary","child":"goLabel","@checks":[{"condition":{"@call":"not","args":{"value":{"@path":"/blocked"}}},"message":"Resolve every check before sending."}],"action":{"event":{"name":"openAccess","context":{"blocked":{"@path":"/blocked"}}}}}]}}
+
+steps:
+  - id: composite-checks-show-their-messages
+    title: The and, or and not checks each show a message and block the send
+    goto: "?status=closed"
+    actions:
+      - click: { text: "Continue" }
+    assert:
+      - text: "Both names are required."
+      - text: "Give a phone or an email address."
+      - text: "Blocked accounts cannot continue."
+      - button_blocked:
+          label: Continue
+          message: Resolve every check before sending.
+      - composer_empty: true

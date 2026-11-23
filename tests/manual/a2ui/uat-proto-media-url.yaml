@@ -1,0 +1,20 @@
+# Operator-assisted E2E: an Image whose URL is a javascript: scheme is refused
+# in the page, so no image element and no script URL reach the reader.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-media-url.yaml
+suite: a2ui-proto-media-url
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"shot"}}
+    {"version":"1.0","updateComponents":{"surfaceId":"shot","components":[{"id":"root","component":"Column","children":["label","picture"]},{"id":"label","component":"Text","text":"Receipt preview"},{"id":"picture","component":"Image","url":"javascript:alert(1)","description":"Receipt"}]}}
+
+steps:
+  - id: unsafe-image-url-is-refused
+    title: A javascript image URL draws the refusal text instead of an image
+    goto: "?status=closed"
+    assert:
+      - text: "Receipt preview"
+      - text: "This renderer only loads http and https images."
+      - text_not: "javascript:"
+      - text: "1 surface"

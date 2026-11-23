@@ -1,0 +1,17 @@
+# Operator-assisted E2E: a fence with no messages explains what to write
+# instead of drawing a surface.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-empty.yaml
+suite: a2ui-proto-empty
+defaults:
+  theme: dark
+stream: ""
+
+steps:
+  - id: empty-fence-shows-guidance
+    title: An empty fence shows the guidance line and reports no surface
+    goto: "?status=closed"
+    assert:
+      - text: "This fence has no A2UI messages."
+      - text: "no surface"
+      - text_not: "waiting for a surface"

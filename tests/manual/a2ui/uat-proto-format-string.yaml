@@ -1,0 +1,18 @@
+# Operator-assisted E2E: formatString interpolates a data path into text.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-proto-format-string.yaml
+suite: a2ui-proto-format-string
+defaults:
+  theme: dark
+stream: |
+    {"version":"1.0","createSurface":{"surfaceId":"greeting","dataModel":{"name":"Ada","count":3}}}
+    {"version":"1.0","updateComponents":{"surfaceId":"greeting","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","line"]},{"id":"title","component":"Text","text":"Assignment"},{"id":"line","component":"Text","text":{"@call":"formatString","args":{"value":"Hello ${/name}, you have ${/count} tasks."}}}]}}
+
+steps:
+  - id: format-string-reads-the-path
+    title: formatString replaces both path placeholders with the data model
+    goto: "?status=closed"
+    assert:
+      - text: "Hello Ada, you have 3 tasks."
+      - text_not: "${/name}"
+      - text: "1 surface"
