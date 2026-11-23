@@ -1,0 +1,34 @@
+# Operator-assisted E2E: two fields bound to the same path stay in step when
+# either one writes, and a Text bound to that path follows the same value.
+#
+# Typing is a real keystroke sequence after a real click. The write lands in
+# the shared data model, so the sibling field and the Text re-render from it.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-binding-shared.yaml
+suite: a2ui-binding-shared
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"shared","sendDataModel":false,"dataModel":{"pickup":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"shared","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","first","second","echo"]},{"id":"title","component":"Text","text":"Shared pickup point"},{"id":"first","component":"TextField","label":"Pickup point","value":{"@path":"/pickup"}},{"id":"second","component":"TextField","label":"Pickup echo","value":{"@path":"/pickup"}},{"id":"echo","component":"Text","text":{"@path":"/pickup"}}]}}
+
+steps:
+  - id: the-first-field-updates-the-second
+    title: Typing in the first field writes the path the second field reads
+    goto: "?status=closed"
+    actions:
+      - type: { label: Pickup point, text: "Lobby desk" }
+    assert:
+      - input_value: { label: Pickup point, value: "Lobby desk" }
+      - input_value: { label: Pickup echo, value: "Lobby desk" }
+      - text: "Lobby desk"
+
+  - id: the-second-field-updates-the-first
+    title: Typing in the second field writes the same path and the first field follows
+    goto: "?status=closed"
+    actions:
+      - type: { label: Pickup echo, text: "North gate" }
+    assert:
+      - input_value: { label: Pickup point, value: "North gate" }
+      - input_value: { label: Pickup echo, value: "North gate" }
+      - text: "North gate"

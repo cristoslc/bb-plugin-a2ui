@@ -1,0 +1,25 @@
+# Operator-assisted E2E: relative paths inside a list template resolve against
+# the current item, including a field inside a nested object.
+#
+# Each stop has a distinct city and hotel, so a path that leaked to the root
+# or to another item would render the wrong pair. The hotel name uses the
+# two-token pointer "hotel/name" to reach an object field below the item.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-binding-relative.yaml
+suite: a2ui-binding-relative
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"route","sendDataModel":false,"dataModel":{"stops":[{"city":"Oslo harbor","hotel":{"name":"Fjord Inn"}},{"city":"Bergen harbor","hotel":{"name":"Bryggen House"}}]}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"route","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","stopList"]},{"id":"title","component":"Text","text":"Northern route"},{"id":"stopList","component":"List","children":{"componentId":"stopCard","path":"/stops"}},{"id":"stopCard","component":"Card","child":"stopBody"},{"id":"stopBody","component":"Column","children":["stopCity","stopHotel"]},{"id":"stopCity","component":"Text","text":{"@path":"city"}},{"id":"stopHotel","component":"Text","text":{"@path":"hotel/name"}}]}}
+
+steps:
+  - id: relative-paths-resolve-against-the-item
+    title: Each list item reads its own city and nested hotel name
+    goto: "?status=closed"
+    assert:
+      - text: "Oslo harbor"
+      - text: "Fjord Inn"
+      - text: "Bergen harbor"
+      - text: "Bryggen House"
+      - text_not: "undefined"

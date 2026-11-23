@@ -1,0 +1,28 @@
+# Operator-assisted E2E: an openUrl function action hands the declared https
+# URL to window.open and writes nothing to the composer.
+#
+# window.open is replaced before the app loads, so the popup URL is captured
+# and no tab opens. The URL is declared under external, matching the media
+# suites: Chrome is allowed to build that request, and the runner aborts it
+# before it leaves the machine.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-action-openurl.yaml
+suite: a2ui-action-openurl
+defaults:
+  theme: dark
+external:
+  - https://example.com/a2ui/handbook
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"handbook","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"handbook","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","guideLabel","guide"]},{"id":"title","component":"Text","text":"Field handbook"},{"id":"guideLabel","component":"Text","text":"Open the handbook"},{"id":"guide","component":"Button","variant":"primary","child":"guideLabel","action":{"functionCall":{"@call":"openUrl","args":{"url":"https://example.com/a2ui/handbook"}}}}]}}
+
+steps:
+  - id: open-url-opens-the-declared-url
+    title: The button hands the exact URL to window.open and the composer stays empty
+    goto: "?status=closed"
+    actions:
+      - click: { text: "Open the handbook" }
+    assert:
+      - popup_url: { equals: "https://example.com/a2ui/handbook" }
+      - composer_empty: {}
+      - text_not: "openUrl only accepts http and https URLs."

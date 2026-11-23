@@ -1,0 +1,43 @@
+# Operator-assisted E2E: an absolute path in a Text and in an action context
+# resolves from the surface root, never from the enclosing list item.
+#
+# The list items carry their own "headline" field, so a relative read would
+# show "Oslo stop" or "Bergen stop". The root headline is the only correct
+# answer. The action context then proves the same rule for a written value.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-binding-absolute.yaml
+suite: a2ui-binding-absolute
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"tripPlan","sendDataModel":false,"dataModel":{"headline":"Winter schedule","profile":{"name":""},"stops":[{"headline":"Oslo stop"},{"headline":"Bergen stop"}]}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"tripPlan","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","traveler","stops","saveLabel","save"]},{"id":"title","component":"Text","text":{"@path":"/headline"}},{"id":"traveler","component":"TextField","label":"Traveler name","value":{"@path":"/profile/name"}},{"id":"stops","component":"Column","children":{"componentId":"stopHeading","path":"/stops"}},{"id":"stopHeading","component":"Text","text":{"@path":"/headline"}},{"id":"saveLabel","component":"Text","text":"Save the winter plan"},{"id":"save","component":"Button","variant":"primary","child":"saveLabel","action":{"event":{"name":"saveBooking","userMessage":"Save the winter plan","context":{"headline":{"@path":"/headline"},"traveler":{"@path":"/profile/name"}}}}}]}}
+
+steps:
+  - id: absolute-text-resolves-from-the-surface-root
+    title: A Text inside a list template binds the root headline, not the item headline
+    goto: "?status=closed"
+    assert:
+      - text: "Winter schedule"
+      - text_not: "Oslo stop"
+      - text_not: "Bergen stop"
+
+  - id: absolute-context-resolves-from-the-surface-root
+    title: An action context resolves an absolute path to the edited root value
+    goto: "?status=closed"
+    actions:
+      - type: { label: Traveler name, text: "Ada Lovelace" }
+      - click: { text: "Save the winter plan" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] saveBooking (surface tripPlan)
+
+          Save the winter plan
+
+          context:
+          ```json
+          {
+            "headline": "Winter schedule",
+            "traveler": "Ada Lovelace"
+          }
+          ```

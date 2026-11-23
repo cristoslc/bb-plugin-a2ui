@@ -1,0 +1,24 @@
+# Operator-assisted E2E: an openUrl with a refused scheme opens nothing, shows
+# the renderer's refusal text, and leaves the composer empty.
+#
+# No external URL is declared, because a refused scheme must never reach the
+# network or the popup stub with a usable address.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-action-openurl-refused.yaml
+suite: a2ui-action-openurl-refused
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"refused","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"refused","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","runLabel","run"]},{"id":"title","component":"Text","text":"Unsafe link check"},{"id":"runLabel","component":"Text","text":"Run the script link"},{"id":"run","component":"Button","variant":"primary","child":"runLabel","action":{"functionCall":{"@call":"openUrl","args":{"url":"javascript:alert(1)"}}}}]}}
+
+steps:
+  - id: refused-scheme-shows-the-refusal-text
+    title: Clicking the unsafe link shows the refusal text and writes nothing to the composer
+    goto: "?status=closed"
+    actions:
+      - click: { text: "Run the script link" }
+    assert:
+      - text: "openUrl only accepts http and https URLs."
+      - composer_empty: {}
+      - text_not: "[a2ui action]"

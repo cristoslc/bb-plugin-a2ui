@@ -1,0 +1,36 @@
+# Operator-assisted E2E: an event action carries literal values and resolved
+# data paths in its context, and the composer receives the exact message.
+#
+# Two fields are typed with real keystrokes. The number field writes a JSON
+# number, so the context shows 5 unquoted while the room stays a literal
+# string and urgent stays a literal boolean.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-action-context.yaml
+suite: a2ui-action-context
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"invitation","sendDataModel":false,"dataModel":{"attendee":"","party":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"invitation","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","attendee","party","inviteLabel","invite"]},{"id":"title","component":"Text","text":"Invite the review panel"},{"id":"attendee","component":"TextField","label":"Attendee","value":{"@path":"/attendee"}},{"id":"party","component":"TextField","label":"Party size","variant":"number","value":{"@path":"/party"}},{"id":"inviteLabel","component":"Text","text":"Send invitation"},{"id":"invite","component":"Button","variant":"primary","child":"inviteLabel","action":{"event":{"name":"invite","context":{"room":"Orion","attendee":{"@path":"/attendee"},"party":{"@path":"/party"},"urgent":true}}}}]}}
+
+steps:
+  - id: context-carries-literals-and-resolved-paths
+    title: The action context holds two literals and two resolved paths in declared order
+    goto: "?status=closed"
+    actions:
+      - type: { label: Attendee, text: "Katherine Johnson" }
+      - type: { label: Party size, text: "5" }
+      - click: { text: "Send invitation" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] invite (surface invitation)
+
+          context:
+          ```json
+          {
+            "room": "Orion",
+            "attendee": "Katherine Johnson",
+            "party": 5,
+            "urgent": true
+          }
+          ```

@@ -1,0 +1,25 @@
+# Operator-assisted E2E: a button whose event action has no name reports the
+# renderer's error text on click and sends nothing to the composer.
+#
+# The event object carries a context but no name, so resolveAction refuses it
+# before any message is formatted. The click is a real mouse event on the
+# button's own box.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-action-invalid.yaml
+suite: a2ui-action-invalid
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"invalid","sendDataModel":false,"dataModel":{"room":"12B"}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"invalid","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","bookLabel","book"]},{"id":"title","component":"Text","text":"Cabin request"},{"id":"bookLabel","component":"Text","text":"Book the cabin"},{"id":"book","component":"Button","variant":"primary","child":"bookLabel","action":{"event":{"context":{"room":{"@path":"/room"}}}}}]}}
+
+steps:
+  - id: nameless-event-reports-the-error
+    title: The missing event name shows the renderer error and the composer stays empty
+    goto: "?status=closed"
+    actions:
+      - click: { text: "Book the cabin" }
+    assert:
+      - text: 'An event action needs a non-empty "name".'
+      - composer_empty: {}
+      - text_not: "[a2ui action]"

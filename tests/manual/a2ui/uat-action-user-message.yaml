@@ -1,0 +1,52 @@
+# Operator-assisted E2E: an event action with userMessage puts that line under
+# the header, and an action without userMessage does not.
+#
+# Both steps use the same surface and the same button label. Only the user
+# message differs, so the exact composer text isolates that one field.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-action-user-message.yaml
+suite: a2ui-action-user-message
+defaults:
+  theme: dark
+
+steps:
+  - id: user-message-is-included
+    title: The userMessage line appears between the header and the context block
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"rooms","sendDataModel":false,"dataModel":{"room":"12B"}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"rooms","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","roomLabel","reserve"]},{"id":"title","component":"Text","text":"Room holding"},{"id":"roomLabel","component":"Text","text":"Hold room 12B until Friday"},{"id":"reserve","component":"Button","variant":"primary","child":"roomLabel","action":{"event":{"name":"reserveRoom","userMessage":"Hold room 12B until Friday","context":{"room":{"@path":"/room"}}}}}]}}
+    actions:
+      - click: { text: "Hold room 12B until Friday" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] reserveRoom (surface rooms)
+
+          Hold room 12B until Friday
+
+          context:
+          ```json
+          {
+            "room": "12B"
+          }
+          ```
+
+  - id: missing-user-message-is-omitted
+    title: The same action without userMessage jumps from the header to the context
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"rooms","sendDataModel":false,"dataModel":{"room":"12B"}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"rooms","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","reserveLabel","reserve"]},{"id":"title","component":"Text","text":"Room holding"},{"id":"reserveLabel","component":"Text","text":"Reserve the room"},{"id":"reserve","component":"Button","variant":"primary","child":"reserveLabel","action":{"event":{"name":"reserveRoom","context":{"room":{"@path":"/room"}}}}}]}}
+    actions:
+      - click: { text: "Reserve the room" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] reserveRoom (surface rooms)
+
+          context:
+          ```json
+          {
+            "room": "12B"
+          }
+          ```
+      - text_not: "Hold room 12B until Friday"

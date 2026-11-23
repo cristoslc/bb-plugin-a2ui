@@ -1,0 +1,57 @@
+# Operator-assisted E2E: sendDataModel false omits the data model block from
+# the composer message, and sendDataModel true includes the whole model.
+#
+# The action context is identical in both steps. The only difference is the
+# surface flag, so the exact composer text isolates the data model block.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-action-no-data-model.yaml
+suite: a2ui-action-no-data-model
+defaults:
+  theme: dark
+
+steps:
+  - id: send-data-model-false-omits-the-block
+    title: With sendDataModel false the message ends after the context block
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"survey","sendDataModel":false,"dataModel":{"seat":"aisle","meal":"vegetarian"}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"survey","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","prompt","submitLabel","submit"]},{"id":"title","component":"Text","text":"Confirm the survey"},{"id":"prompt","component":"Text","text":"Your seat is saved as aisle"},{"id":"submitLabel","component":"Text","text":"Submit survey"},{"id":"submit","component":"Button","variant":"primary","child":"submitLabel","action":{"event":{"name":"submitSurvey","context":{"seat":{"@path":"/seat"}}}}}]}}
+    actions:
+      - click: { text: "Submit survey" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] submitSurvey (surface survey)
+
+          context:
+          ```json
+          {
+            "seat": "aisle"
+          }
+          ```
+
+  - id: send-data-model-true-includes-the-block
+    title: With sendDataModel true the whole model follows the context block
+    goto: "?status=closed"
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"survey","sendDataModel":true,"dataModel":{"seat":"aisle","meal":"vegetarian"}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"survey","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","prompt","submitLabel","submit"]},{"id":"title","component":"Text","text":"Confirm the survey"},{"id":"prompt","component":"Text","text":"Your seat is saved as aisle"},{"id":"submitLabel","component":"Text","text":"Submit survey"},{"id":"submit","component":"Button","variant":"primary","child":"submitLabel","action":{"event":{"name":"submitSurvey","context":{"seat":{"@path":"/seat"}}}}}]}}
+    actions:
+      - click: { text: "Submit survey" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] submitSurvey (surface survey)
+
+          context:
+          ```json
+          {
+            "seat": "aisle"
+          }
+          ```
+
+          data model:
+          ```json
+          {
+            "seat": "aisle",
+            "meal": "vegetarian"
+          }
+          ```
