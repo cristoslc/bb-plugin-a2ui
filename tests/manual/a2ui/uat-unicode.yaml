@@ -1,0 +1,38 @@
+# Operator-assisted E2E: accented text, an emoji and a non-Latin name survive
+# the input, the rendered Text and the action context, and the composer holds
+# the exact characters that were typed.
+#
+# The field is filled with real keystrokes, including the emoji and the CJK
+# characters, then the button is clicked at its own box.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-unicode.yaml
+suite: a2ui-unicode
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"greeting","sendDataModel":false,"dataModel":{"name":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"greeting","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","sendLabel","send"]},{"id":"title","component":"Text","text":"Café Zürich 🚀 東京"},{"id":"name","component":"TextField","label":"Your name","placeholder":"Renée Ångström","value":{"@path":"/name"}},{"id":"sendLabel","component":"Text","text":"Send greeting"},{"id":"send","component":"Button","variant":"primary","child":"sendLabel","action":{"event":{"name":"greet","userMessage":"Send greeting","context":{"name":{"@path":"/name"},"greeting":"Hola, señor 👋","city":"München"}}}}]}}
+
+steps:
+  - id: unicode-survives-the-field-and-the-message
+    title: A name with accents, an emoji and CJK characters reaches the composer exactly
+    goto: "?status=closed"
+    actions:
+      - type: { label: Your name, text: "Renée Ångström 🚀 李雷" }
+      - click: { text: "Send greeting" }
+    assert:
+      - text: "Café Zürich 🚀 東京"
+      - input_value: { label: Your name, value: "Renée Ångström 🚀 李雷" }
+      - composer_exact: |-
+          [a2ui action] greet (surface greeting)
+
+          Send greeting
+
+          context:
+          ```json
+          {
+            "name": "Renée Ångström 🚀 李雷",
+            "greeting": "Hola, señor 👋",
+            "city": "München"
+          }
+          ```

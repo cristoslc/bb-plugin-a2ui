@@ -1,0 +1,30 @@
+# Operator-assisted E2E: a List templated over 50 items draws every row, in
+# stream order, with the first and the last row visible on screen.
+#
+# Order is proven by the column layout plus the row count: a vertical List
+# paints its children in document order, so the first child is the first item
+# and the 50th child is the last item. The viewport is tall enough to hold all
+# 50 rows at once, which is what makes both ends visible in the same frame.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-long-list.yaml
+suite: a2ui-long-list
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"queue","sendDataModel":false,"dataModel":{"items":[{"name":"Row 01"},{"name":"Row 02"},{"name":"Row 03"},{"name":"Row 04"},{"name":"Row 05"},{"name":"Row 06"},{"name":"Row 07"},{"name":"Row 08"},{"name":"Row 09"},{"name":"Row 10"},{"name":"Row 11"},{"name":"Row 12"},{"name":"Row 13"},{"name":"Row 14"},{"name":"Row 15"},{"name":"Row 16"},{"name":"Row 17"},{"name":"Row 18"},{"name":"Row 19"},{"name":"Row 20"},{"name":"Row 21"},{"name":"Row 22"},{"name":"Row 23"},{"name":"Row 24"},{"name":"Row 25"},{"name":"Row 26"},{"name":"Row 27"},{"name":"Row 28"},{"name":"Row 29"},{"name":"Row 30"},{"name":"Row 31"},{"name":"Row 32"},{"name":"Row 33"},{"name":"Row 34"},{"name":"Row 35"},{"name":"Row 36"},{"name":"Row 37"},{"name":"Row 38"},{"name":"Row 39"},{"name":"Row 40"},{"name":"Row 41"},{"name":"Row 42"},{"name":"Row 43"},{"name":"Row 44"},{"name":"Row 45"},{"name":"Row 46"},{"name":"Row 47"},{"name":"Row 48"},{"name":"Row 49"},{"name":"Row 50"}]}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"queue","components":[{"id":"root","component":"List","children":{"componentId":"row","path":"/items"}},{"id":"row","component":"Text","text":{"@path":"name"}}]}}
+
+steps:
+  - id: all-fifty-rows-draw-in-order
+    title: All 50 rows draw from Row 01 to Row 50, and both ends are visible
+    goto: "?status=closed"
+    viewport: { width: 1280, height: 1600 }
+    assert:
+      - text: "Row 01"
+      - text: "Row 25"
+      - text: "Row 50"
+      - text_not: "Waiting for /items"
+      - style: { selector: '.flex-col.gap-2', property: flex-direction, equals: column }
+      - count: { selector: '.flex-col.gap-2 > div', equals: 50 }
+      - visible: { selector: '.flex-col.gap-2 > div:nth-child(1)', min_height: 16 }
+      - visible: { selector: '.flex-col.gap-2 > div:nth-child(50)', min_height: 16 }

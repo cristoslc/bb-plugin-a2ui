@@ -1,0 +1,24 @@
+# Operator-assisted E2E: a long paragraph at a 390x844 viewport wraps inside
+# the card and stays fully visible. `visible` proves the box survives its
+# clipping ancestors and sits inside the viewport; the height minimum proves
+# the paragraph wrapped onto several lines instead of running off one edge.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-long-text-phone.yaml
+suite: a2ui-long-text-phone
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"story"}}
+  {"version":"1.0","updateComponents":{"surfaceId":"story","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","paragraph"]},{"id":"title","component":"Text","text":"A note from the harbor"},{"id":"paragraph","component":"Text","text":"The harbor opens before sunrise, when the water is still and the fishing boats come in one after another. The market stalls fill with ice, lemons and dark bread, and the first coffee is poured while the gulls argue over the pier. By noon the wind picks up, the sails lean toward the point, and the ferry carries visitors past the lighthouse and back again. In the evening the lamps along the quay come on in a slow line, the kitchens open their doors, and the same boats that left in the dark return with the day catch."}]}}
+
+steps:
+  - id: long-paragraph-wraps-inside-a-phone
+    title: At 390x844 the paragraph wraps across several lines and stays inside the viewport
+    goto: "?status=closed"
+    viewport: { width: 390, height: 844 }
+    assert:
+      - visible: { selector: '.flex-col.gap-2 > div:nth-child(2) [data-uat-markdown]', min_height: 200 }
+      - visible: { selector: '[class*="bg-background/60"]', min_height: 250 }
+      - style: { selector: '.flex-col.gap-2 > div:nth-child(2) [data-uat-markdown]', property: width, equals: 306px }
+      - text: "the same boats that left in the dark return with the day catch."
+      - text: "A note from the harbor"

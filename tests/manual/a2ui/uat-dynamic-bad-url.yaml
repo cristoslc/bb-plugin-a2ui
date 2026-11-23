@@ -1,0 +1,26 @@
+# Operator-assisted E2E: an Image whose url is bound to a javascript: value in
+# the data model shows the renderer's refusal text, and no image element or
+# script URL reaches the page.
+#
+# The bad value comes from the data model rather than a literal, so the refusal
+# is decided after binding resolution.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-dynamic-bad-url.yaml
+suite: a2ui-dynamic-bad-url
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"receipt","dataModel":{"photo":"javascript:alert(1)"}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"receipt","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","picture","footer"]},{"id":"title","component":"Text","text":"Receipt preview"},{"id":"picture","component":"Image","url":{"@path":"/photo"},"description":"Receipt"},{"id":"footer","component":"Text","text":"Upload a new photo to continue."}]}}
+
+steps:
+  - id: bound-javascript-url-is-refused
+    title: A data-bound javascript image URL draws the refusal text and no image
+    goto: "?status=closed"
+    assert:
+      - text: "Receipt preview"
+      - text: "This renderer only loads http and https images."
+      - text: "Upload a new photo to continue."
+      - count: { selector: 'img', equals: 0 }
+      - text_not: "javascript:"
+      - text: "1 surface"
