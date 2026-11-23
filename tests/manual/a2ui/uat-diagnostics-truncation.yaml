@@ -1,0 +1,34 @@
+# Operator-assisted E2E: a stream with more than six diagnostics shows the first
+# six rows and one muted "and 2 more" line, so a long list cannot swallow the
+# surface above it.
+#
+# Eight unclosed JSON lines each produce one MALFORMED_MESSAGE diagnostic. Lines
+# seven and eight must not appear as rows.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-diagnostics-truncation.yaml
+suite: a2ui-diagnostics-truncation
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","broken":
+  {"version":"1.0","broken":
+  {"version":"1.0","broken":
+  {"version":"1.0","broken":
+  {"version":"1.0","broken":
+  {"version":"1.0","broken":
+  {"version":"1.0","broken":
+  {"version":"1.0","broken":
+
+steps:
+  - id: eight-diagnostics-are-truncated-to-six
+    title: The list shows six diagnostic rows plus one "and 2 more" line
+    goto: "?status=closed"
+    assert:
+      - count: { selector: '[data-uat-fence] li', equals: 7 }
+      - text: "and 2 more"
+      - diagnostic:
+          code: MALFORMED_MESSAGE
+          message_contains: "Line 1 is not valid JSON"
+      - text: "Line 6 is not valid JSON"
+      - text_not: "Line 7 is not valid JSON"
+      - text_not: "Line 8 is not valid JSON"

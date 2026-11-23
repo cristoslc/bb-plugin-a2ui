@@ -1,0 +1,45 @@
+# Operator-assisted E2E: a duplicate component is a warning, not a stop. Its row
+# is shown, the last definition draws the surface, and the button still sends.
+#
+# The duplicate id "greeting" appears twice in one updateComponents message. The
+# reducer keeps the last definition and records DUPLICATE_COMPONENT at warning
+# severity, so no alert blocks the action.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-warning-does-not-block.yaml
+suite: a2ui-warning-does-not-block
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"warn","sendDataModel":false,"dataModel":{}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"warn","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","greeting","ackLabel","ack"]},{"id":"title","component":"Text","text":"Service notice"},{"id":"greeting","component":"Text","text":"First version of the notice"},{"id":"greeting","component":"Text","text":"Second version of the notice"},{"id":"ackLabel","component":"Text","text":"Acknowledge the notice"},{"id":"ack","component":"Button","variant":"primary","child":"ackLabel","action":{"event":{"name":"acknowledgeNotice","userMessage":"Acknowledge the notice","context":{}}}}]}}
+
+steps:
+  - id: warning-is-shown-and-the-last-definition-draws
+    title: The duplicate warning is listed, the surface draws the last Text, and no alert blocks it
+    goto: "?status=closed"
+    assert:
+      - diagnostic:
+          code: DUPLICATE_COMPONENT
+          message_contains: "appears twice"
+      - text: "Service notice"
+      - text: "Second version of the notice"
+      - text_not: "First version of the notice"
+      - count: { selector: 'button:has([data-uat-markdown])', equals: 1 }
+      - count: { selector: '[role="alert"]', equals: 0 }
+
+  - id: button-still-sends-despite-the-warning
+    title: Clicking the button with a duplicate warning present puts the exact action into the composer
+    goto: "?status=closed"
+    actions:
+      - click: { text: "Acknowledge the notice" }
+    assert:
+      - composer_exact: |-
+          [a2ui action] acknowledgeNotice (surface warn)
+
+          Acknowledge the notice
+
+          context:
+          ```json
+          {}
+          ```
+      - count: { selector: '[role="alert"]', equals: 0 }
