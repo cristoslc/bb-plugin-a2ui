@@ -39,7 +39,7 @@ Reports land in `docs/uat/`, with one report per suite and screenshots under `do
 
 ## Replies in this repository
 
-Draw with this project's own renderer. A reply that has something to show carries an `a2ui` fence or plain prose, never an Iris block or an Iris tool call. The plugin is the product, so its replies test it. Iris stays installed for other projects.
+Draw with this project's own renderer first. A reply that needs UI checks `a2ui_catalog` and carries an `a2ui` fence. Use Iris only when the Basic Catalog lacks the component type. Plain prose stays fine. The plugin is the product, so its replies test it.
 
 ## Layout
 

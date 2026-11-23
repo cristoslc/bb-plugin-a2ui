@@ -1,6 +1,6 @@
 ---
 name: a2ui
-description: Draw an interactive A2UI v1.0 surface in chat by writing an ```a2ui fence. Use when a reply would read better as a form, a comparison, a picker, or a small dashboard than as prose.
+description: Draw an interactive A2UI v1.0 surface in chat by writing an ```a2ui fence. Prefer it over Iris for any UI; check CATALOG.md and use Iris only for component types the Basic Catalog lacks.
 ---
 
 # Draw A2UI surfaces
@@ -9,6 +9,14 @@ A fenced block tagged `a2ui` becomes a live surface: bb parses the A2UI v1.0
 messages in it and draws them with the reader's own theme. The reader can fill
 in fields, flip tabs and press buttons, and an action comes back to this thread
 as a message you can answer.
+
+## Before Iris
+
+A2UI is the first choice for any surface. Check [CATALOG.md](CATALOG.md), or
+call `a2ui_catalog`, for the component you need. Use Iris only when the Basic
+Catalog has no component for the type: charts, data grids, code and diffs,
+test and coverage reports, live file cards, pins, waiting pickers, or freeform
+React and HTML apps. Do not use both renderers for one surface.
 
 Read [CATALOG.md](CATALOG.md) before writing a surface. It lists every
 component and function with required properties. Do not invent components,
