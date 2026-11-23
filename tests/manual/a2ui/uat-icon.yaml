@@ -1,0 +1,41 @@
+# Operator-assisted E2E: a mapped icon name draws the renderer's icon element,
+# an unmapped name stays visible as text instead of disappearing, and an inline
+# svgPath draws an svg with a path.
+#
+# The mapped name is the catalog's `locationOn`, which the renderer maps to
+# `MapPin`. The unmapped name is deliberately absent from that map.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-icon.yaml
+suite: a2ui-icon
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"toolbar","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"toolbar","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","mapped","unknown","custom"]},{"id":"title","component":"Text","text":"Harbor toolbar"},{"id":"mapped","component":"Icon","name":"locationOn"},{"id":"unknown","component":"Icon","name":"sparkleTrail"},{"id":"custom","component":"Icon","name":{"svgPath":"M12 2L2 22h20z"}}]}}
+
+steps:
+  - id: mapped-icon-draws-the-icon-element
+    title: locationOn draws the MapPin icon element and never prints the raw name
+    goto: "?status=closed"
+    assert:
+      - count: { selector: '[data-uat-icon="MapPin"]', equals: 1 }
+      - attr: { selector: '[data-uat-icon="MapPin"]', name: data-uat-icon, equals: "MapPin" }
+      - attr: { selector: '[data-uat-icon="MapPin"]', name: aria-hidden, equals: "true" }
+      - text_not: "locationOn"
+
+  - id: unmapped-icon-keeps-its-name-visible
+    title: An unmapped icon name draws the fallback chip with the name in text
+    goto: "?status=closed"
+    assert:
+      - text: "sparkleTrail"
+      - attr: { selector: 'span[title]', name: title, equals: "Icon not in this renderer's map" }
+      - count: { selector: '[data-uat-icon="sparkleTrail"]', equals: 0 }
+
+  - id: inline-svg-path-draws-a-path
+    title: An svgPath icon draws one svg whose path carries the given d
+    goto: "?status=closed"
+    assert:
+      - count: { selector: svg, equals: 1 }
+      - attr: { selector: "svg", name: viewBox, equals: "0 0 24 24" }
+      - attr: { selector: "svg path", name: d, equals: "M12 2L2 22h20z" }
+      - text: "Harbor toolbar"

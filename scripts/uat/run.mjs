@@ -8,7 +8,12 @@
  *
  * Assertions: text, text_not, theme, diagnostic, button_blocked,
  * composer_exact, composer_empty, slider_value, input_value, checked,
- * selected, count, attr, popup_url, visible, hit_test.
+ * selected, count, attr, style, popup_url, visible, hit_test.
+ *
+ * `attr` and `style` read exactly one element: a selector matching zero or
+ * several fails the assertion with a count, so a test never passes on the
+ * wrong node. `style` takes `{ selector, property, equals }` and compares the
+ * computed value; the property may be written as `object-fit` or `objectFit`.
  *
  * Actions: click, type, slider_to, toggle, select_option, tab, modal_open,
  * modal_close, source_toggle, wait.
@@ -16,6 +21,12 @@
  * A step may set `viewport: { width, height }` to run at a chosen size. The
  * default is 1280x820; the screenshots at the end of a run always cover both
  * required sizes.
+ *
+ * The runner aborts every request that leaves the harness origin. A suite that
+ * asserts a media element still needs Chrome to build the request, so it names
+ * those exact URLs under `external:` at the suite level. Every declared URL is
+ * still aborted before it leaves the machine, and any other external request
+ * fails the run.
  *
  * `visible` takes `{ selector, min_height }` and requires the element to
  * exist, survive every clipping ancestor, sit fully inside the viewport, and
@@ -557,6 +568,34 @@ async function runAssertion(page, assertion) {
             : `attr ${value.name}=${JSON.stringify(info.value)} on ${JSON.stringify(value.selector)}, expected ${JSON.stringify(String(value.equals))}`,
     };
   }
+  if (key === "style") {
+    const info = await page.evaluate(
+      ({ selector, property }) => {
+        const matches = [...document.querySelectorAll(selector)];
+        const cssProperty = property.includes("-")
+          ? property
+          : property.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
+        return {
+          count: matches.length,
+          value:
+            matches.length === 1
+              ? getComputedStyle(matches[0]).getPropertyValue(cssProperty).trim()
+              : null,
+        };
+      },
+      { selector: value.selector, property: value.property },
+    );
+    const ok = info.count === 1 && info.value === String(value.equals);
+    return {
+      ok,
+      detail:
+        info.count === 0
+          ? `no element matches ${JSON.stringify(value.selector)}`
+          : info.count > 1
+            ? `${info.count} elements match ${JSON.stringify(value.selector)}, expected exactly one`
+            : `style ${value.property}=${JSON.stringify(info.value)} on ${JSON.stringify(value.selector)}, expected ${JSON.stringify(String(value.equals))}`,
+    };
+  }
   if (key === "popup_url") {
     const urls = await page.evaluate(() => window.__uatPopups ?? []);
     const last = urls.at(-1);
@@ -692,6 +731,9 @@ async function runSuite(file, browser) {
   const name = (file.split("/").pop() ?? "suite").replace(/\.yaml$/u, "");
   const theme = suite.defaults?.theme ?? "dark";
   const steps = Array.isArray(suite.steps) ? suite.steps : [];
+  const declaredExternal = new Set(
+    (Array.isArray(suite.external) ? suite.external : []).map((url) => String(url)),
+  );
   if (steps.length === 0) throw new Error(`${name}: suite has no steps`);
 
   const port = await freePort();
@@ -823,23 +865,27 @@ async function runSuite(file, browser) {
     }
     report.shots = shots;
     report.externalRequests = externalRequests;
-    if (externalRequests.length > 0) {
-      report.steps.push({
-        id: "network",
-        title: "The suite never reaches the network",
-        ok: false,
-        results: [
-          { name: "no external requests", ok: false, detail: compact(externalRequests) },
-        ],
-      });
-    } else {
-      report.steps.push({
-        id: "network",
-        title: "The suite never reaches the network",
-        ok: true,
-        results: [{ name: "no external requests", ok: true, detail: `${base} only` }],
-      });
-    }
+    // A media suite names the URLs Chrome has to request; they are aborted
+    // like every other external URL, and only a URL the suite did not name
+    // fails the run.
+    const undeclared = externalRequests.filter((url) => !declaredExternal.has(url));
+    report.steps.push({
+      id: "network",
+      title: "The suite never reaches the network",
+      ok: undeclared.length === 0,
+      results: [
+        {
+          name: "no undeclared external requests",
+          ok: undeclared.length === 0,
+          detail:
+            undeclared.length > 0
+              ? compact(undeclared)
+              : externalRequests.length === 0
+                ? `${base} only`
+                : `declared and aborted ${compact(externalRequests)}`,
+        },
+      ],
+    });
   } finally {
     await page.close();
     await context.close();

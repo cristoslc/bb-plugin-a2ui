@@ -1,0 +1,44 @@
+# Operator-assisted E2E: Row computes flex-direction row and Column computes
+# column, each keeps its children in order, and their catalog justify and
+# align values reach computed style.
+#
+# Order is proven without reading component internals: every Text child gets a
+# distinct weight, which the renderer turns into an inline flex value, so the
+# nth child's computed flex-grow names that child unambiguously.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-layout.yaml
+suite: a2ui-layout
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"layout","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"layout","components":[{"id":"root","component":"Column","children":["row","column"]},{"id":"row","component":"Row","justify":"spaceBetween","align":"center","children":["rowOne","rowTwo","rowThree"]},{"id":"rowOne","component":"Text","text":"Row child alpha","weight":3},{"id":"rowTwo","component":"Text","text":"Row child beta","weight":1},{"id":"rowThree","component":"Text","text":"Row child gamma","weight":2},{"id":"column","component":"Column","justify":"center","align":"center","children":["colOne","colTwo","colThree"]},{"id":"colOne","component":"Text","text":"Column child delta","weight":1},{"id":"colTwo","component":"Text","text":"Column child epsilon","weight":3},{"id":"colThree","component":"Text","text":"Column child zeta","weight":2}]}}
+
+steps:
+  - id: row-computes-row-and-keeps-order
+    title: Row computes flex-direction row with space-between and center, and its three children stay in order
+    goto: "?status=closed"
+    assert:
+      - style: { selector: ".flex-row.justify-between", property: flex-direction, equals: row }
+      - style: { selector: ".flex-row.justify-between", property: justify-content, equals: space-between }
+      - style: { selector: ".flex-row.justify-between", property: align-items, equals: center }
+      - style: { selector: ".flex-row.justify-between > div:nth-child(1)", property: flex-grow, equals: "3" }
+      - style: { selector: ".flex-row.justify-between > div:nth-child(2)", property: flex-grow, equals: "1" }
+      - style: { selector: ".flex-row.justify-between > div:nth-child(3)", property: flex-grow, equals: "2" }
+      - text: "Row child alpha"
+      - text: "Row child beta"
+      - text: "Row child gamma"
+
+  - id: column-computes-column-and-keeps-order
+    title: Column computes flex-direction column with center on both axes, and its three children stay in order
+    goto: "?status=closed"
+    assert:
+      - style: { selector: ".flex-col.justify-center", property: flex-direction, equals: column }
+      - style: { selector: ".flex-col.justify-center", property: justify-content, equals: center }
+      - style: { selector: ".flex-col.justify-center", property: align-items, equals: center }
+      - style: { selector: ".flex-col.justify-center > div:nth-child(1)", property: flex-grow, equals: "1" }
+      - style: { selector: ".flex-col.justify-center > div:nth-child(2)", property: flex-grow, equals: "3" }
+      - style: { selector: ".flex-col.justify-center > div:nth-child(3)", property: flex-grow, equals: "2" }
+      - text: "Column child delta"
+      - text: "Column child epsilon"
+      - text: "Column child zeta"

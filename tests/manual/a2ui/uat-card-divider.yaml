@@ -1,0 +1,41 @@
+# Operator-assisted E2E: a Card draws a border on all four sides around its
+# single child, and a Divider with role=separator is a one pixel line whose
+# computed height or width names its axis.
+#
+# The vertical rule sits inside a Row so it has a row height to stretch to.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-card-divider.yaml
+suite: a2ui-card-divider
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"frame","sendDataModel":false}}
+  {"version":"1.0","updateComponents":{"surfaceId":"frame","components":[{"id":"root","component":"Column","children":["panel","flatRule","ruleRow"]},{"id":"panel","component":"Card","child":"panelText"},{"id":"panelText","component":"Text","text":"Card interior label"},{"id":"flatRule","component":"Divider"},{"id":"ruleRow","component":"Row","children":["ruleLabel","uprightRule"]},{"id":"ruleLabel","component":"Text","text":"Vertical rule label"},{"id":"uprightRule","component":"Divider","axis":"vertical"}]}}
+
+steps:
+  - id: card-draws-a-border-around-one-child
+    title: The Card computes a one pixel solid border on all four sides and wraps exactly one child
+    goto: "?status=closed"
+    assert:
+      - count: { selector: "div.rounded-md.border > *", equals: 1 }
+      - style: { selector: "div.rounded-md.border", property: border-top-width, equals: "1px" }
+      - style: { selector: "div.rounded-md.border", property: border-right-width, equals: "1px" }
+      - style: { selector: "div.rounded-md.border", property: border-bottom-width, equals: "1px" }
+      - style: { selector: "div.rounded-md.border", property: border-left-width, equals: "1px" }
+      - style: { selector: "div.rounded-md.border", property: border-top-style, equals: solid }
+      - text: "Card interior label"
+
+  - id: divider-defaults-to-horizontal
+    title: A Divider without axis is a separator one pixel tall
+    goto: "?status=closed"
+    assert:
+      - attr: { selector: ".h-px", name: role, equals: separator }
+      - style: { selector: ".h-px", property: height, equals: "1px" }
+
+  - id: divider-axis-vertical-is-one-pixel-wide
+    title: A Divider with axis vertical is a separator one pixel wide
+    goto: "?status=closed"
+    assert:
+      - attr: { selector: ".w-px", name: role, equals: separator }
+      - style: { selector: ".w-px", property: width, equals: "1px" }
+      - text: "Vertical rule label"
