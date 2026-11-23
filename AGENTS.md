@@ -14,6 +14,20 @@ npm run check
 
 That is `tsc --noEmit` plus `vitest run`. Run it before every commit and quote the result in the PR body.
 
+## Test command - operator-assisted E2E (UAT)
+
+```
+npm run uat
+```
+
+Drives the YAML suites in `tests/manual/a2ui/` against the real fence renderer mounted in the screenshot harness under `scripts/screenshot/`. Vite aliases `@get-bb/plugin-sdk/app` to `mock-sdk.tsx`, so `app.tsx` and `ui/render.tsx` run unmodified against a captured renderer and a simulated composer.
+
+Run `npm run build` first. The harness loads the compiled `dist/app.css`, and the runner refuses to start when it is missing.
+
+The runner uses the system Chrome. Set `CHROME_PATH` when Chrome is not at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
+
+Reports land in `docs/uat/`, with one report per suite and screenshots under `docs/uat/shots/`. Run a single suite with `npm run uat -- tests/manual/a2ui/uat-draw.yaml`.
+
 ## Ground rules
 
 - `catalog/basic.v1.json` is vendored upstream data. Never hand-edit it. Replace it from `a2ui-project/a2ui` and run `npm run catalog:build`, which regenerates `catalog/generated.ts` and `skills/a2ui/CATALOG.md`.
