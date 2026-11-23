@@ -3,7 +3,7 @@
 // The renderer is declarative by design: it never evaluates code from the
 // agent. Every expression goes through shared/protocol.ts, which resolves
 // paths and a fixed list of catalog functions.
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Markdown } from "@get-bb/plugin-sdk/app";
 import { CATALOG_COMPONENTS, type CatalogComponentName } from "@/catalog/generated";
@@ -623,6 +623,16 @@ interface SurfaceViewProps {
 export function SurfaceView({ surface, onAction, onProblem }: SurfaceViewProps) {
   const [edits, setEdits] = useState<ReadonlyArray<{ pointer: string; value: Json }>>([]);
   const [attempted, setAttempted] = useState(false);
+  // The data model this card was reading when the reader sent an action. The
+  // local edits stay visible until a reply brings a new model, so a submit does
+  // not snap the fields back to the values the agent sent earlier.
+  const [submittedModel, setSubmittedModel] = useState<Json | null>(null);
+
+  useEffect(() => {
+    if (submittedModel === null || surface.dataModel === submittedModel) return;
+    setEdits([]);
+    setSubmittedModel(null);
+  }, [surface.dataModel, submittedModel]);
 
   const model = useMemo(
     () => edits.reduce<Json>((current, edit) => writePointer(current, edit.pointer, edit.value), surface.dataModel),
@@ -672,6 +682,7 @@ export function SurfaceView({ surface, onAction, onProblem }: SurfaceViewProps) 
       context: resolved.context,
       dataModel: surface.sendDataModel ? model : {},
     });
+    setSubmittedModel(surface.dataModel);
   };
 
   const renderRef = (id: string, scope?: EvalScope, index?: number): ReactNode => (

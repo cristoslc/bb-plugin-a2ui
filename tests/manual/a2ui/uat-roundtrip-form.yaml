@@ -8,7 +8,8 @@
 #
 # A pushed reply is the whole fence body the renderer receives, so it carries
 # its own createSurface. The surface id and component ids stay the same, which
-# is what keeps the mounted card and its local edits in place.
+# is what keeps the mounted card in place. The reply echoes the submitted values
+# in its data model, because a submit hands the field back to the agent.
 #
 # Run: npm run uat -- tests/manual/a2ui/uat-roundtrip-form.yaml
 suite: a2ui-roundtrip-form
@@ -50,7 +51,7 @@ steps:
       - push_stream:
           status: closed
           code: |
-            {"version":"1.0","createSurface":{"surfaceId":"contact","sendDataModel":true,"dataModel":{"name":"","topic":"","status":""},"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["heading","name","topic","statusLine","submit"]},{"id":"heading","component":"Text","text":"Send a message"},{"id":"name","component":"TextField","label":"Your name","value":{"@path":"/name"}},{"id":"topic","component":"TextField","label":"Topic","value":{"@path":"/topic"}},{"id":"statusLine","component":"Text","text":{"@call":"formatString","args":{"value":"Status: ${/status}"}}},{"id":"submitLabel","component":"Text","text":"Submit request"},{"id":"submit","component":"Button","variant":"primary","child":"submitLabel","action":{"event":{"name":"submitRequest","userMessage":"Submit the request","context":{"name":{"@path":"/name"}}}}}]}}
+            {"version":"1.0","createSurface":{"surfaceId":"contact","sendDataModel":true,"dataModel":{"name":"Ada","topic":"Access","status":""},"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["heading","name","topic","statusLine","submit"]},{"id":"heading","component":"Text","text":"Send a message"},{"id":"name","component":"TextField","label":"Your name","value":{"@path":"/name"}},{"id":"topic","component":"TextField","label":"Topic","value":{"@path":"/topic"}},{"id":"statusLine","component":"Text","text":{"@call":"formatString","args":{"value":"Status: ${/status}"}}},{"id":"submitLabel","component":"Text","text":"Submit request"},{"id":"submit","component":"Button","variant":"primary","child":"submitLabel","action":{"event":{"name":"submitRequest","userMessage":"Submit the request","context":{"name":{"@path":"/name"}}}}}]}}
             {"version":"1.0","updateComponents":{"surfaceId":"contact","components":[{"id":"heading","component":"Text","text":"Request received"},{"id":"submitLabel","component":"Text","text":"Send another request"}]}}
             {"version":"1.0","updateDataModel":{"surfaceId":"contact","path":"/status","value":"received"}}
     assert:

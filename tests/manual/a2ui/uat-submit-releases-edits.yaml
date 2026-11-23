@@ -1,0 +1,87 @@
+# Operator-assisted E2E: when a reply lands after a submit, the agent owns the
+# field again.
+#
+# The reader types, submits, and the typed value stays on screen right after the
+# click, so the submit itself does not snap the card back to the old model. The
+# reply that follows carries a new model, and that model reaches the field the
+# reader had edited. Before the rule, the local edit outranked every later
+# update, so the correction never landed.
+#
+# The second step is the other half of the promise: a click that the checks
+# block is not a submit. Its edit keeps the field across a later reply, so a
+# refused click cannot hand the field to the agent.
+#
+# A pushed reply is the whole fence body the renderer receives, so it carries
+# its own createSurface with the same surface and component ids.
+#
+# Run: npm run uat -- tests/manual/a2ui/uat-submit-releases-edits.yaml
+suite: a2ui-submit-releases-edits
+defaults:
+  theme: dark
+stream: |
+  {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":""}}}
+  {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","savedAs","saveLabel","save"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}},{"id":"savedAs","component":"Text","text":{"@call":"formatString","args":{"value":"Saved as ${/name}"}}},{"id":"saveLabel","component":"Text","text":"Save profile"},{"id":"save","component":"Button","variant":"primary","child":"saveLabel","action":{"event":{"name":"saveProfile","userMessage":"Save the profile","context":{"name":{"@path":"/name"}}}}}]}}
+
+steps:
+  - id: a-reply-after-submit-reaches-the-edited-field
+    title: The typed value survives the click, and the next reply writes over it in the same field
+    goto: "?status=closed"
+    actions:
+      - type: { label: Display name, text: "Grace" }
+      - assert:
+          input_value: { label: Display name, value: "Grace" }
+      - assert:
+          text: "Saved as Grace"
+      - click: { text: "Save profile" }
+      - assert:
+          composer_exact: |-
+            [a2ui action] saveProfile (surface profile)
+
+            Save the profile
+
+            context:
+            ```json
+            {
+              "name": "Grace"
+            }
+            ```
+
+            data model:
+            ```json
+            {
+              "name": "Grace"
+            }
+            ```
+      - assert:
+          input_value: { label: Display name, value: "Grace" }
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":"Ada Lovelace"},"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","savedAs","saveLabel","save"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}},{"id":"savedAs","component":"Text","text":{"@call":"formatString","args":{"value":"Saved as ${/name}"}}},{"id":"saveLabel","component":"Text","text":"Save profile"},{"id":"save","component":"Button","variant":"primary","child":"saveLabel","action":{"event":{"name":"saveProfile","userMessage":"Save the profile","context":{"name":{"@path":"/name"}}}}}]}}
+    assert:
+      - input_value: { label: Display name, value: "Ada Lovelace" }
+      - text: "Saved as Ada Lovelace"
+      - count: { selector: '[data-uat-fence] > div', equals: 1 }
+
+  - id: a-blocked-click-does-not-release-the-edit
+    title: A click the checks refuse sends nothing and the edit still outranks a later reply
+    stream: |
+      {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":""}}}
+      {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","saveLabel","save"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}},{"id":"saveLabel","component":"Text","text":"Save profile"},{"id":"save","component":"Button","variant":"primary","child":"saveLabel","@checks":[{"condition":{"@call":"length","args":{"value":{"@path":"/name"},"min":5}},"message":"Use at least five characters."}],"action":{"event":{"name":"saveProfile","userMessage":"Save the profile","context":{"name":{"@path":"/name"}}}}}]}}
+    goto: "?status=closed"
+    actions:
+      - type: { label: Display name, text: "Gr" }
+      - click: { text: "Save profile" }
+      - assert:
+          text: "Use at least five characters."
+      - assert:
+          composer_empty: true
+      - push_stream:
+          status: closed
+          code: |
+            {"version":"1.0","createSurface":{"surfaceId":"profile","sendDataModel":true,"dataModel":{"name":"Ada Lovelace"},"components":[{"id":"root","component":"Card","child":"body"},{"id":"body","component":"Column","children":["title","name","saveLabel","save"]},{"id":"title","component":"Text","text":"Edit profile"},{"id":"name","component":"TextField","label":"Display name","value":{"@path":"/name"}},{"id":"saveLabel","component":"Text","text":"Save profile"},{"id":"save","component":"Button","variant":"primary","child":"saveLabel","@checks":[{"condition":{"@call":"length","args":{"value":{"@path":"/name"},"min":5}},"message":"Use at least five characters."}],"action":{"event":{"name":"saveProfile","userMessage":"Save the profile","context":{"name":{"@path":"/name"}}}}}]}}
+            {"version":"1.0","updateComponents":{"surfaceId":"profile","components":[{"id":"title","component":"Text","text":"Updated by the agent"}]}}
+    assert:
+      - input_value: { label: Display name, value: "Gr" }
+      - text: "Updated by the agent"
+      - count: { selector: '[data-uat-fence] > div', equals: 1 }

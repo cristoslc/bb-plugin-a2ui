@@ -64,6 +64,7 @@ Steps counts the rows in that suite's generated report table. Each report ends w
 | `tests/manual/a2ui/uat-runner-verbs.yaml` | Every assertion and action verb the runner advertises is driven against the real renderer at least once. | 8 |
 | `tests/manual/a2ui/uat-slider-attributes.yaml` | A Slider carries the catalog min, max and step to the native range input, and the bound value stays inside that range. | 4 |
 | `tests/manual/a2ui/uat-streaming-to-closed.yaml` | A streaming partial reply draws what arrived with no diagnostic, and a closed full reply replaces it with the complete surface and no diagnostic row. | 2 |
+| `tests/manual/a2ui/uat-submit-releases-edits.yaml` | A reply that lands after a submit writes over the field the reader edited, while a click the checks refuse keeps the edit. | 2 |
 | `tests/manual/a2ui/uat-tabs-content.yaml` | Tabs shows its first panel by default, and a real click on the second tab replaces it with that tab's own content. | 4 |
 | `tests/manual/a2ui/uat-textfield.yaml` | Every TextField variant draws the native control its name promises, a placeholder reaches the attribute, and typing writes the bound value. | 5 |
 | `tests/manual/a2ui/uat-two-actions.yaml` | Two buttons each send their own message, and the composer holds both in click order. | 2 |
@@ -86,4 +87,4 @@ Three catalog validation promises are proved in `tests/catalog.test.ts` rather t
 
 ## Total
 
-67 suites. They script 111 steps, and each report adds one network check row, for 178 report rows in all.
+68 suites. They script 113 steps, and each report adds one network check row, for 180 report rows in all.
