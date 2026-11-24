@@ -48,10 +48,19 @@ The agent answers that message like any other, often with an `updateComponents` 
 - Function calls inside `formatString`'s `${...}` expressions. Paths and `@index` work; anything else is an error.
 - Executable code. Nothing from the fence is evaluated as JavaScript.
 
-## Install and develop
+## Install
 
 ```
-cd ~/code/bb-plugin-a2ui
+bb plugin install git:https://github.com/cristoslc/bb-plugin-a2ui.git@v0.1.0 --yes
+```
+
+The tag pins this release. Use `@semver:>=0.1.0` instead of `@v0.1.0` to follow later releases.
+
+## Develop
+
+```
+git clone https://github.com/cristoslc/bb-plugin-a2ui.git
+cd bb-plugin-a2ui
 npm install
 bb plugin build
 bb plugin install . --yes
