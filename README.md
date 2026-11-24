@@ -61,11 +61,14 @@ The tag pins this release. Use `@semver:>=0.1.0` instead of `@v0.1.0` to follow 
 ```
 git clone https://github.com/cristoslc/bb-plugin-a2ui.git
 cd bb-plugin-a2ui
+git lfs install
 npm install
 bb plugin build
 bb plugin install . --yes
 bb plugin dev          # rebuild and reload on save
 ```
+
+Screenshots under `docs/uat/shots/` are stored with Git LFS. The `git lfs install` line puts the pre-push hook in place, so a push uploads the image objects. Without it, the remote keeps pointers and a fresh clone fails its checkout.
 
 To see a surface, send yourself a reply containing an `a2ui` fence with at least a `createSurface` line, or ask an agent to draw one; the bundled skill teaches it.
 
